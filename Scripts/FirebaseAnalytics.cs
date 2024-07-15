@@ -40,6 +40,11 @@ namespace Viva.Services.Analytics
             return parameters.ToArray();
         }
 
+        /// <summary>
+        /// Insert here all the common parameters that are going to be sent with every event.
+        /// </summary>
+        /// <param name="parameters"> The event parameters </param>
+        /// <param name="stringParams"> Event parameters in string format </param>
         private void InsertCommonParameters(List<Parameter> parameters, List<string> stringParams)
         {
             // Insert here all the common parameters that are going to be sent with every event.
