@@ -76,7 +76,8 @@ namespace Viva.Services.Analytics
 
             if (GUILayout.Button("Add Parameter"))
             {
-                _eventParameters.Add(new EventParameter("NewParam", "int"));
+                var previousType = _eventParameters.LastOrDefault()?.Type ?? "int";
+                _eventParameters.Add(new EventParameter("new_param", previousType));
                 GUI.FocusControl(null);
             }
 
@@ -214,10 +215,20 @@ namespace Viva.Services.Analytics
 
         private void CreateEventScript(string scriptName, string assetPath)
         {
-            Debug.Log($"Creating script: {scriptName} at {assetPath}");
             var eventParameters = _eventParameters;
             foreach (var param in eventParameters)
                 param.Name = ToSnakeCase(param.Name);
+            
+            // Check if there are repeated parameter names
+            if (HasRepeatedParameterNames(eventParameters))
+            {
+                EditorUtility.DisplayDialog("Repeated parameter names",
+                    "The event parameters must have unique names.", "Ok");
+                return;
+            }
+            
+            Debug.Log($"Creating script: {scriptName} at {assetPath}");
+            
             // Create the desired script
             using StreamWriter outfile = new StreamWriter(assetPath);
             outfile.WriteLine("using System.Collections.Generic;");
@@ -325,6 +336,19 @@ namespace Viva.Services.Analytics
 
         #region Parameters
 
+        private bool HasRepeatedParameterNames(List<EventParameter> eventParameters)
+        {
+            var names = new HashSet<string>();
+            foreach (var param in eventParameters)
+            {
+                if (!names.Add(param.Name))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
         private string EditorParametersToPseudoCode(List<EventParameter> eventParameters)
         {
             var result = new StringBuilder();
