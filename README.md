@@ -4,9 +4,9 @@ This tool makes the creation and modification of analytics events easier to impl
 
 ## Installation
 
-In order to use this tool, you need the latest version of [Firebase Analytics sdk]([https://firebase.google.com/download/unity?hl=es](https://firebase.google.com/docs/analytics/unity/start?hl=es)) installed.
+In order to use this tool, you need the latest version of [Firebase Analytics sdk](https://firebase.google.com/docs/analytics/unity/start?hl=es) installed.
 
-After configuring and installing Firebase Analytics, add this .unitypackage to your project.
+After configuring and installing Firebase Analytics, add this [.unitypackage](https://drive.google.com/file/d/1HA5lXo3XcBHv69kWL4e-ROQm7Y2v69Nz/view?usp=sharing) to your project.
 
 ## Documentation
 
