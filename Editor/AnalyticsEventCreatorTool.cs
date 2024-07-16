@@ -27,7 +27,8 @@ namespace Viva.Services.Analytics
         {
             // Display the description of the tool
             GUILayout.Label(
-                "Event Creator Tool for Firebase Analytics. Please, write all the string labels in UpperCamelCase or normal words separated by spaces.",
+                "Event Creator Tool for Firebase Analytics. Please, write all the string labels in default event format (level_start), " +
+                "UpperCamelCase or normal words separated by spaces.",
                 EditorStyles.wordWrappedLabel);
 
             // Display the event name field
@@ -40,6 +41,7 @@ namespace Viva.Services.Analytics
                     LoadParameters();
                 }
             }
+
             EditorGUILayout.EndHorizontal();
 
             // Display the parameters section
@@ -51,7 +53,7 @@ namespace Viva.Services.Analytics
                 {
                     EditorGUILayout.BeginHorizontal();
                     _eventParameters[i].Name = EditorGUILayout.TextField("Name", _eventParameters[i].Name);
-                    
+
                     // Determine the current index of the parameter type
                     int currentIndex = Array.IndexOf(_parameterTypes, _eventParameters[i].Type);
                     if (currentIndex == -1) currentIndex = 0; // Default to the first type if not found
@@ -84,10 +86,7 @@ namespace Viva.Services.Analytics
         private void LoadParameters()
         {
             var scriptName = _eventName;
-            // Split the string into words
-            var words = scriptName.Split(' ');
-            // Capitalize the first letter of each word and concatenate them
-            scriptName = string.Concat(words.Select(word => char.ToUpper(word[0]) + word.Substring(1)));
+            scriptName = ToUpperCamelCase(scriptName);
             var folderPath = "Assets/VivaAnalytics/Events";
             var assetPath = folderPath + $"/{scriptName}.cs";
             // If the script already exists, load the parameters
@@ -104,6 +103,7 @@ namespace Viva.Services.Analytics
                         "No parameters found in the event script.", "Ok");
                     return;
                 }
+
                 _eventParameters.Clear(); // Clear existing parameters before loading new ones
 
                 foreach (Match match in matches)
@@ -120,7 +120,7 @@ namespace Viva.Services.Analytics
                     "No event found with that name", "Ok");
             }
         }
-        
+
         private void CreateEvent()
         {
             var scriptName = _eventName;
@@ -132,10 +132,7 @@ namespace Viva.Services.Analytics
                 return;
             }
 
-            // Split the string into words
-            var words = scriptName.Split(' ');
-            // Capitalize the first letter of each word and concatenate them
-            scriptName = string.Concat(words.Select(word => char.ToUpper(word[0]) + word.Substring(1)));
+            scriptName = ToUpperCamelCase(scriptName);
 
             var folderPath = "Assets/VivaAnalytics/Events";
             // Create the directory if it doesn't exist
@@ -180,21 +177,21 @@ namespace Viva.Services.Analytics
             outfile.WriteLine("{");
             outfile.WriteLine($"\tpublic class {scriptName} : IAnalyticsEvent");
             outfile.WriteLine("\t{");
-            
+
             // Save the parameters if is Editor
             outfile.WriteLine("#if UNITY_EDITOR");
             outfile.WriteLine($"\t\tpublic List<EventParameter> eventParameters = new()");
             outfile.WriteLine(EditorParametersToPseudoCode(eventParameters));
             outfile.WriteLine("#endif");
             outfile.WriteLine("");
-            
+
             // Create the event parameters
             outfile.WriteLine(ParameterNamesToPseudoCode(eventParameters));
             outfile.WriteLine(ParameterVariablesToPseudoCode(eventParameters));
-            
+
             // Create the constructor
             outfile.WriteLine(CreateConstructor(scriptName, eventParameters));
-            
+
             // Create the event key constant in snake case format
             var eventKey = ToSnakeCase(scriptName);
             outfile.WriteLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
@@ -218,6 +215,7 @@ namespace Viva.Services.Analytics
             {
                 result.Append($"{param.Type} {ToLowerCamelCase(param.Name)}, ");
             }
+
             result.Remove(result.Length - 2, 2);
             result.AppendLine(")");
             result.AppendLine("\t\t{");
@@ -225,10 +223,11 @@ namespace Viva.Services.Analytics
             {
                 result.AppendLine($"\t\t\t_{ToLowerCamelCase(param.Name)} = {ToLowerCamelCase(param.Name)};");
             }
+
             result.AppendLine("\t\t}");
             return result.ToString();
         }
-        
+
         private string TrackingFieldsDictionaryToPseudoCode(List<EventParameter> eventParameters)
         {
             var result = new StringBuilder();
@@ -238,6 +237,7 @@ namespace Viva.Services.Analytics
             {
                 result.AppendLine($"\t\t\t{{ {param.Name.ToUpper()}, _{ToLowerCamelCase(param.Name)} }},");
             }
+
             result.AppendLine("\t\t};");
 
             return result.ToString();
@@ -254,6 +254,7 @@ namespace Viva.Services.Analytics
             {
                 result.Append($"{param.Type} {ToLowerCamelCase(param.Name)}, ");
             }
+
             result.Remove(result.Length - 2, 2);
             result.AppendLine($") =>");
             result.Append($"\t\t\tAnalyticsService.TrackEvent(new {scriptName}(");
@@ -261,14 +262,15 @@ namespace Viva.Services.Analytics
             {
                 result.Append($"{ToLowerCamelCase(param.Name)}, ");
             }
+
             result.Remove(result.Length - 2, 2);
             result.Append("));");
-            
+
             return result.ToString();
         }
 
         #endregion
-        
+
         #region Parameters
 
         private string EditorParametersToPseudoCode(List<EventParameter> eventParameters)
@@ -284,7 +286,7 @@ namespace Viva.Services.Analytics
 
             return result.ToString();
         }
-        
+
         private string ParameterNamesToPseudoCode(List<EventParameter> eventParameters)
         {
             var result = new StringBuilder();
@@ -296,12 +298,12 @@ namespace Viva.Services.Analytics
 
             return result.ToString();
         }
-        
+
         private string ParameterVariablesToPseudoCode(List<EventParameter> eventParameters)
         {
             var result = new StringBuilder();
             result.AppendLine("\t\t// Event Parameters Variables");
-            
+
             foreach (var param in eventParameters)
             {
                 result.AppendLine($"\t\tprivate readonly {param.Type} _{ToLowerCamelCase(param.Name)};");
@@ -313,6 +315,26 @@ namespace Viva.Services.Analytics
         #endregion
 
         #region Utils
+
+        private string ToUpperCamelCase(string stringToChange)
+        {
+            if (string.IsNullOrEmpty(stringToChange)) return stringToChange;
+
+            // Replace spaces with underscores to handle both formats uniformly
+            stringToChange = stringToChange.Replace(" ", "_");
+            var words = stringToChange.Split('_');
+            var result = new StringBuilder();
+
+            foreach (var word in words)
+            {
+                if (!string.IsNullOrEmpty(word))
+                {
+                    result.Append(char.ToUpper(word[0]) + word.Substring(1).ToLower());
+                }
+            }
+
+            return result.ToString();
+        }
 
         private string ToLowerCamelCase(string snakeCaseString)
         {
@@ -331,7 +353,7 @@ namespace Viva.Services.Analytics
 
             return result.ToString();
         }
-        
+
         private string ToSnakeCase(string stringToConvert)
         {
             if (string.IsNullOrEmpty(stringToConvert)) return stringToConvert;
