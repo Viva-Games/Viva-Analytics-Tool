@@ -5,9 +5,10 @@ namespace Viva.Services.Analytics
 {
     public class FirebaseAnalytics : AAnalyticsTracker
     {
-        // Insert here all the keys for the common parameters. EXAMPLE:
+        // Insert here all the keys for the common parameters. You can also put them directly in the InsertCommonParameters method.
+        // EXAMPLE:
         // public const string PARAM_PLAYER_LEVEL = "player_level";
-        
+
         public static FirebaseAnalytics Instance { get; private set; } = new();
 
         private bool _isInitialized;
