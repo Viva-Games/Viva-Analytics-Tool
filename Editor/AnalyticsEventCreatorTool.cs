@@ -200,7 +200,10 @@ namespace Viva.Services.Analytics
             outfile.WriteLine(TrackMethodToPseudoCode(scriptName, eventParameters));
             outfile.WriteLine("\t}");
             outfile.WriteLine("}");
-
+            
+            outfile.Close();
+            
+            AssetDatabase.Refresh();
             CompilationPipeline.RequestScriptCompilation();
         }
 
