@@ -39,6 +39,7 @@ namespace Viva.Services.Analytics
                 if (GUILayout.Button("Load Parameters"))
                 {
                     LoadParameters();
+                    GUI.FocusControl(null);
                 }
             }
 
@@ -64,6 +65,7 @@ namespace Viva.Services.Analytics
                     if (GUILayout.Button("Remove"))
                     {
                         _eventParameters.RemoveAt(i);
+                        GUI.FocusControl(null);
                         EditorGUILayout.EndHorizontal();
                         break; // Exit the loop to avoid modifying the collection while iterating
                     }
@@ -75,11 +77,58 @@ namespace Viva.Services.Analytics
             if (GUILayout.Button("Add Parameter"))
             {
                 _eventParameters.Add(new EventParameter("NewParam", "int"));
+                GUI.FocusControl(null);
             }
 
+            EditorGUILayout.BeginHorizontal();
+            
             if (GUILayout.Button("Create or Modify Event"))
             {
                 CreateEvent();
+                GUI.FocusControl(null);
+            }
+
+            if (GUILayout.Button("Clear"))
+            {
+                _eventName = "";
+                _eventParameters.Clear();
+                GUI.FocusControl(null);
+            }
+
+            if (GUILayout.Button("Delete Event"))
+            {
+                DeleteEvent();
+                GUI.FocusControl(null);
+            }
+            
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DeleteEvent()
+        {
+            var scriptName = _eventName;
+            // Check if the event name is empty
+            if (string.IsNullOrEmpty(scriptName))
+            {
+                EditorUtility.DisplayDialog("Empty event name",
+                    "The event name cannot be empty.", "Ok");
+                return;
+            }
+            scriptName = ToUpperCamelCase(scriptName);
+            var folderPath = "Assets/VivaAnalytics/Events";
+            var assetPath = folderPath + $"/{scriptName}.cs";
+            if (File.Exists(assetPath))
+            {
+                File.Delete(assetPath);
+                _eventName = "";
+                _eventParameters.Clear();
+                AssetDatabase.Refresh();
+                CompilationPipeline.RequestScriptCompilation();
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("Event not found",
+                    "No event found with that name", "Ok");
             }
         }
 
