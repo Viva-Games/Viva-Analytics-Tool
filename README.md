@@ -1,13 +1,12 @@
-![image](https://github.com/user-attachments/assets/1e4176d0-25a3-4ab1-b374-4858bc34933d)
 # Firebase Analytics Event Creator
 
 This tool makes the creation and modification of analytics events easier to implement and use.
 
 ## Installation
 
-In order to use this tool, you need the latest version of [Firebase Analytics sdk](https://firebase.google.com/download/unity?hl=es) installed.
+In order to use this tool, you need the latest version of [Firebase Analytics sdk]([https://firebase.google.com/download/unity?hl=es](https://firebase.google.com/docs/analytics/unity/start?hl=es)) installed.
 
-After installing Firebase Analytics, add this .unitypackage to your project.
+After configuring and installing Firebase Analytics, add this .unitypackage to your project.
 
 ## Documentation
 
@@ -29,3 +28,5 @@ Put the AnalyticsInit.cs script in the first scene of your game.
 - To log this event, use {NameOfEvent}.Track() in the desired part of your code, providing the necessary parameters.
 
 ### Common Parameters
+
+To add common parameters, modify the "FirebaseAnalytics.cs" script (there are comments to help you). All you need is a key or name for the parameter and the value. These values are usually the player's level, or hours played, or something similar. Therefore, it is recommended to store these values in some way (PlayerPrefs, JSON...) to update them during the game flow and to reflect this update in every event.
