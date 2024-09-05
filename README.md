@@ -6,7 +6,7 @@ This tool makes the creation and modification of analytics events easier to impl
 
 In order to use this tool, you need the latest version of [Firebase Analytics sdk](https://firebase.google.com/docs/analytics/unity/start?hl=es) installed.
 
-After configuring and installing Firebase Analytics, add this [.unitypackage](https://drive.google.com/file/d/1HA5lXo3XcBHv69kWL4e-ROQm7Y2v69Nz/view?usp=sharing) to your project.
+After configuring and installing Firebase Analytics, download the latest [.unitypackage release](https://github.com/Viva-Games/Viva-Analytics-Tool/releases) and add it to your project.
 
 ## Documentation
 
