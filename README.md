@@ -16,17 +16,23 @@ Put the AnalyticsInit.cs script in the first scene of your game.
 
 ### Event creation and modification
 
-- To display the tool, go to Viva/Analytics/Event Creator
+- To display the tool, go to Viva/Analytics/Event Manager
 
-![image](https://github.com/user-attachments/assets/9a806723-047d-42a5-88d7-8252323e8730)
+![image](https://github.com/user-attachments/assets/5980dd3d-4adc-4452-80d3-fab9fcf2564f)
 
-![image](https://github.com/user-attachments/assets/57b15372-508d-4da2-864d-12ac1e90be8b)
+![image](https://github.com/user-attachments/assets/baf0e93c-62f5-4bc8-9887-a2ddda2887b4)
 
-- Introduce the name of the desired event. If it already exists, you can load the parameters.
-- Add, remove and modify the event parameters. You can change the name and the type of value of each parameter.
-- When you have all done, use the "Create or Modify Event" button. A new script will be created in "Assets/VivaAnalytics/Events/".
-- To log this event, use {NameOfEvent}.Track() in the desired part of your code, providing the necessary parameters.
-- You can also clear the data or delete an event with the desired name. It will be deleted if exists.
+- The tool displays all events in the Assets/VivaAnalytics/Events/ folder.
+- You can create, edit and delete events.
+- When you press the Create button, you must type the name of the new event and press Enter or the Create button. A new script will be created in the Events folder.
+- When you create or edit an event, the Event Editor appears.
+
+![image](https://github.com/user-attachments/assets/3e4ee458-3c1c-4079-b0ca-e8df2c266b9c)
+
+- This editor allows you to change the name of the event and its parameters.
+- If you do not save the changes, they will be lost. The tool will warn you.
+
+To log an event, use {NameOfEvent}.Track() in the desired part of your code, providing the necessary parameters.
 
 ### Common Parameters
 
