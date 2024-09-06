@@ -132,10 +132,10 @@ namespace Viva.Services.Analytics
                 var regex = new Regex(@"new EventParameter\(""(.+?)"", ""(.+?)""\)", RegexOptions.Singleline);
                 var matches = regex.Matches(fileContent);
 
+                _eventParameters.Clear(); // Clear existing parameters before loading new ones
+                
                 if (matches.Count == 0)
                     return;
-
-                _eventParameters.Clear(); // Clear existing parameters before loading new ones
 
                 foreach (Match match in matches)
                 {
