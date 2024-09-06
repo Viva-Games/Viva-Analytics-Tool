@@ -8,40 +8,43 @@ using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using Viva.Services.Utils;
 
 namespace Viva.Services.Analytics
 {
-    public class AnalyticsEventCreatorTool : EditorWindow
+    public class AnalyticsEventEditor : EditorWindow
     {
+        public static bool IsOpen;
+        
         private string _eventName;
+        private string _previousEventName;
         private List<EventParameter> _eventParameters = new();
         private string[] _parameterTypes = new[] { "int", "string", "double" };
 
         private void OnEnable()
         {
             // Set the minimum size of the window
+            IsOpen = true;
             minSize = new Vector2(600, 200);
+            LoadParameters(_eventName);
+        }
+        
+        private void OnDisable()
+        {
+            IsOpen = false;
         }
 
         private void OnGUI()
         {
             // Display the description of the tool
             GUILayout.Label(
-                "Event Creator Tool for Firebase Analytics. Please, write all the string labels in default event format (level_start), " +
+                "Please, write all the string labels in default event format (level_start), " +
                 "UpperCamelCase or normal words separated by spaces.",
                 EditorStyles.wordWrappedLabel);
 
             // Display the event name field
             EditorGUILayout.BeginHorizontal();
             _eventName = EditorGUILayout.TextField("Event Name", _eventName);
-            if (!string.IsNullOrEmpty(_eventName))
-            {
-                if (GUILayout.Button("Load Parameters"))
-                {
-                    LoadParameters();
-                    GUI.FocusControl(null);
-                }
-            }
 
             EditorGUILayout.EndHorizontal();
 
@@ -74,6 +77,8 @@ namespace Viva.Services.Analytics
                 }
             }
 
+            EditorGUILayout.BeginHorizontal();
+            
             if (GUILayout.Button("Add Parameter"))
             {
                 var previousType = _eventParameters.LastOrDefault()?.Type ?? "int";
@@ -81,78 +86,37 @@ namespace Viva.Services.Analytics
                 GUI.FocusControl(null);
             }
 
-            EditorGUILayout.BeginHorizontal();
-            
-            if (GUILayout.Button("Create or Modify Event"))
+            if (GUILayout.Button("Clear Parameters"))
             {
-                CreateEvent();
-                GUI.FocusControl(null);
-            }
-
-            if (GUILayout.Button("Clear"))
-            {
-                _eventName = "";
                 _eventParameters.Clear();
-                GUI.FocusControl(null);
-            }
-
-            if (GUILayout.Button("Delete Event"))
-            {
-                DeleteEvent();
                 GUI.FocusControl(null);
             }
             
             EditorGUILayout.EndHorizontal();
-        }
-
-        private void DeleteEvent()
-        {
-            var scriptName = _eventName;
-            // Check if the event name is empty
-            if (string.IsNullOrEmpty(scriptName))
+            
+            if (GUILayout.Button("Save"))
             {
-                EditorUtility.DisplayDialog("Empty event name",
-                    "The event name cannot be empty.", "Ok");
-                return;
-            }
-            scriptName = ToUpperCamelCase(scriptName);
-            var folderPath = "Assets/VivaAnalytics/Events";
-            var assetPath = folderPath + $"/{scriptName}.cs";
-            if (File.Exists(assetPath))
-            {
-                File.Delete(assetPath);
-                _eventName = "";
-                _eventParameters.Clear();
-                AssetDatabase.Refresh();
-                CompilationPipeline.RequestScriptCompilation();
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Event not found",
-                    "No event found with that name", "Ok");
+                SaveEvent();
+                GUI.FocusControl(null);
             }
         }
 
-        private void LoadParameters()
+        private void LoadParameters(string scriptName)
         {
-            var scriptName = _eventName;
-            scriptName = ToUpperCamelCase(scriptName);
+            scriptName = StringUtils.ToUpperCamelCase(scriptName);
             var folderPath = "Assets/VivaAnalytics/Events";
             var assetPath = folderPath + $"/{scriptName}.cs";
             // If the script already exists, load the parameters
             if (File.Exists(assetPath))
             {
+                _previousEventName = scriptName;
                 var fileContent = File.ReadAllText(assetPath);
                 // Regular expression to find the event parameters
                 var regex = new Regex(@"new EventParameter\(""(.+?)"", ""(.+?)""\)", RegexOptions.Singleline);
                 var matches = regex.Matches(fileContent);
 
                 if (matches.Count == 0)
-                {
-                    EditorUtility.DisplayDialog("No parameters found",
-                        "No parameters found in the event script.", "Ok");
                     return;
-                }
 
                 _eventParameters.Clear(); // Clear existing parameters before loading new ones
 
@@ -164,14 +128,9 @@ namespace Viva.Services.Analytics
                     _eventParameters.Add(new EventParameter(eventName, type));
                 }
             }
-            else
-            {
-                EditorUtility.DisplayDialog("Event not found",
-                    "No event found with that name", "Ok");
-            }
         }
 
-        private void CreateEvent()
+        private void SaveEvent()
         {
             var scriptName = _eventName;
             // Check if the event name is empty
@@ -182,26 +141,10 @@ namespace Viva.Services.Analytics
                 return;
             }
 
-            scriptName = ToUpperCamelCase(scriptName);
+            scriptName = StringUtils.ToUpperCamelCase(scriptName);
 
             var folderPath = "Assets/VivaAnalytics/Events";
-            // Create the directory if it doesn't exist
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
-
             var assetPath = folderPath + $"/{scriptName}.cs";
-
-            // if the script already exists, ask the user if they want to overwrite it
-            if (File.Exists(assetPath))
-            {
-                if (!EditorUtility.DisplayDialog(
-                        "Event already exists",
-                        "The event already exists. Do you want to overwrite it?", "Yes", "No"))
-                {
-                    Debug.Log("Cancelled event creation.");
-                    return;
-                }
-            }
 
             if (_eventParameters.Count == 0)
             {
@@ -210,65 +153,102 @@ namespace Viva.Services.Analytics
                 return;
             }
 
-            CreateEventScript(scriptName, assetPath);
+            SaveEventScript(scriptName, assetPath);
         }
 
-        private void CreateEventScript(string scriptName, string assetPath)
+        private void SaveEventScript(string scriptName, string assetPath)
         {
-            var eventParameters = _eventParameters;
-            foreach (var param in eventParameters)
-                param.Name = ToSnakeCase(param.Name);
-            
             // Check if there are repeated parameter names
-            if (HasRepeatedParameterNames(eventParameters))
+            if (HasRepeatedParameterNames(GetSnakeCaseEventParameters()))
             {
                 EditorUtility.DisplayDialog("Repeated parameter names",
                     "The event parameters must have unique names.", "Ok");
                 return;
             }
             
-            Debug.Log($"Creating script: {scriptName} at {assetPath}");
+            var outfile = CreateAllScriptString(scriptName);
+            if (!HasChanges(outfile, assetPath))
+            {
+                EditorUtility.DisplayDialog("No changes",
+                    "No changes were made.", "Ok");
+                return;
+            }
             
-            // Create the desired script
-            using StreamWriter outfile = new StreamWriter(assetPath);
-            outfile.WriteLine("using System.Collections.Generic;");
-            outfile.WriteLine("");
-            outfile.WriteLine("namespace Viva.Services.Analytics");
-            outfile.WriteLine("{");
-            outfile.WriteLine($"\tpublic class {scriptName} : IAnalyticsEvent");
-            outfile.WriteLine("\t{");
-
-            // Save the parameters if is Editor
-            outfile.WriteLine("#if UNITY_EDITOR");
-            outfile.WriteLine($"\t\tpublic List<EventParameter> eventParameters = new()");
-            outfile.WriteLine(EditorParametersToPseudoCode(eventParameters));
-            outfile.WriteLine("#endif");
-            outfile.WriteLine("");
-
-            // Create the event parameters
-            outfile.WriteLine(ParameterNamesToPseudoCode(eventParameters));
-            outfile.WriteLine(ParameterVariablesToPseudoCode(eventParameters));
-
-            // Create the constructor
-            outfile.WriteLine(CreateConstructor(scriptName, eventParameters));
-
-            // Create the event key constant in snake case format
-            var eventKey = ToSnakeCase(scriptName);
-            outfile.WriteLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
-            outfile.WriteLine("");
-            outfile.WriteLine(TrackingFieldsDictionaryToPseudoCode(eventParameters));
-            outfile.WriteLine(TrackMethodToPseudoCode(scriptName, eventParameters));
-            outfile.WriteLine("\t}");
-            outfile.WriteLine("}");
+            if (!EditorUtility.DisplayDialog(
+                    "Save Confirmation",
+                    "Do you want to overwrite the event?", "Yes", "No"))
+            {
+                Debug.Log("Cancelled event creation.");
+                return;
+            }
             
-            outfile.Close();
+            Debug.Log($"Modifying script: {scriptName} at {assetPath}");
+            
+            using StreamWriter newEventFile = new StreamWriter(assetPath);
+            newEventFile.Write(outfile);
+            newEventFile.Close();
             
             AssetDatabase.Refresh();
             CompilationPipeline.RequestScriptCompilation();
         }
+        
+        private bool HasChanges(string outfile, string previousAssetPath)
+        {
+            var currentFile = File.ReadAllText(previousAssetPath);
+            // Remove all spaces from both strings
+            var normalizedCurrentFile = StringUtils.Normalize(currentFile);
+            var normalizedOutfile = StringUtils.Normalize(outfile);
+            return normalizedCurrentFile != normalizedOutfile;
+        }
 
         #region Method Constructors
 
+        private string CreateAllScriptString(string scriptName)
+        {
+            var eventParameters = GetSnakeCaseEventParameters();
+            
+            // Create the desired script
+            var outfile = new StringBuilder();
+            outfile.AppendLine("using System.Collections.Generic;");
+            outfile.AppendLine("");
+            outfile.AppendLine("namespace Viva.Services.Analytics");
+            outfile.AppendLine("{");
+            outfile.AppendLine($"\tpublic class {scriptName} : IAnalyticsEvent");
+            outfile.AppendLine("\t{");
+
+            // Save the parameters if is Editor
+            outfile.AppendLine("#if UNITY_EDITOR");
+            outfile.AppendLine($"\t\tpublic List<EventParameter> eventParameters = new()");
+            outfile.AppendLine(EditorParametersToPseudoCode(eventParameters));
+            outfile.AppendLine("#endif");
+            outfile.AppendLine("");
+
+            // Create the event parameters
+            outfile.AppendLine(ParameterNamesToPseudoCode(eventParameters));
+            outfile.AppendLine(ParameterVariablesToPseudoCode(eventParameters));
+
+            // Create the constructor
+            outfile.AppendLine(CreateConstructor(scriptName, eventParameters));
+
+            // Create the event key constant in snake case format
+            var eventKey = StringUtils.ToSnakeCase(scriptName);
+            outfile.AppendLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
+            outfile.AppendLine("");
+            outfile.AppendLine(TrackingFieldsDictionaryToPseudoCode(eventParameters));
+            outfile.AppendLine(TrackMethodToPseudoCode(scriptName, eventParameters));
+            outfile.AppendLine("\t}");
+            outfile.AppendLine("}");
+            return outfile.ToString();
+        }
+
+        private List<EventParameter> GetSnakeCaseEventParameters()
+        {
+            var eventParameters = _eventParameters;
+            foreach (var param in eventParameters)
+                param.Name = StringUtils.ToSnakeCase(param.Name);
+            return eventParameters;
+        }
+        
         private string CreateConstructor(string scriptName, List<EventParameter> parameters)
         {
             var result = new StringBuilder();
@@ -276,7 +256,7 @@ namespace Viva.Services.Analytics
             result.Append($"\t\tprivate {scriptName}(");
             foreach (var param in parameters)
             {
-                result.Append($"{param.Type} {ToLowerCamelCase(param.Name)}, ");
+                result.Append($"{param.Type} {StringUtils.ToLowerCamelCase(param.Name)}, ");
             }
 
             result.Remove(result.Length - 2, 2);
@@ -284,7 +264,7 @@ namespace Viva.Services.Analytics
             result.AppendLine("\t\t{");
             foreach (var param in parameters)
             {
-                result.AppendLine($"\t\t\t_{ToLowerCamelCase(param.Name)} = {ToLowerCamelCase(param.Name)};");
+                result.AppendLine($"\t\t\t_{StringUtils.ToLowerCamelCase(param.Name)} = {StringUtils.ToLowerCamelCase(param.Name)};");
             }
 
             result.AppendLine("\t\t}");
@@ -298,7 +278,7 @@ namespace Viva.Services.Analytics
             result.AppendLine("\t\t{");
             foreach (var param in eventParameters)
             {
-                result.AppendLine($"\t\t\t{{ {param.Name.ToUpper()}, _{ToLowerCamelCase(param.Name)} }},");
+                result.AppendLine($"\t\t\t{{ {param.Name.ToUpper()}, _{StringUtils.ToLowerCamelCase(param.Name)} }},");
             }
 
             result.AppendLine("\t\t};");
@@ -315,7 +295,7 @@ namespace Viva.Services.Analytics
             result.Append($"\t\tpublic static void Track(");
             foreach (var param in eventParameters)
             {
-                result.Append($"{param.Type} {ToLowerCamelCase(param.Name)}, ");
+                result.Append($"{param.Type} {StringUtils.ToLowerCamelCase(param.Name)}, ");
             }
 
             result.Remove(result.Length - 2, 2);
@@ -323,7 +303,7 @@ namespace Viva.Services.Analytics
             result.Append($"\t\t\tAnalyticsService.TrackEvent(new {scriptName}(");
             foreach (var param in eventParameters)
             {
-                result.Append($"{ToLowerCamelCase(param.Name)}, ");
+                result.Append($"{StringUtils.ToLowerCamelCase(param.Name)}, ");
             }
 
             result.Remove(result.Length - 2, 2);
@@ -382,7 +362,7 @@ namespace Viva.Services.Analytics
 
             foreach (var param in eventParameters)
             {
-                result.AppendLine($"\t\tprivate readonly {param.Type} _{ToLowerCamelCase(param.Name)};");
+                result.AppendLine($"\t\tprivate readonly {param.Type} _{StringUtils.ToLowerCamelCase(param.Name)};");
             }
 
             return result.ToString();
@@ -390,73 +370,42 @@ namespace Viva.Services.Analytics
 
         #endregion
 
-        #region Utils
-
-        private string ToUpperCamelCase(string stringToChange)
+        private void TryShowWindow(string newEventName)
         {
-            if (string.IsNullOrEmpty(stringToChange)) return stringToChange;
-
-            // Replace spaces with underscores to handle both formats uniformly
-            stringToChange = stringToChange.Replace(" ", "_");
-            var words = stringToChange.Split('_');
-            var result = new StringBuilder();
-
-            foreach (var word in words)
+            if (_eventName != null && _eventName != newEventName)
             {
-                if (!string.IsNullOrEmpty(word))
+                var eventName = StringUtils.ToUpperCamelCase(_eventName);
+                // Creamos el outfile del nuevo evento.
+                var outfile = CreateAllScriptString(eventName);
+                // Obtenemos el asset path del evento anterior.
+                var assetPath = $"Assets/VivaAnalytics/Events/{_previousEventName}.cs";
+                if (HasChanges(outfile, assetPath))
                 {
-                    result.Append(char.ToUpper(word[0]) + word.Substring(1).ToLower());
+                    if (!EditorUtility.DisplayDialog(
+                            "Unsaved Changes",
+                            "Your changes will be lost. Are you sure you want to continue?",
+                            "Yes", "No"))
+                        return;
                 }
             }
-
-            return result.ToString();
+            
+            _eventName = newEventName;
+            LoadParameters(newEventName);
+        }
+        
+        public static void ShowWindow(string eventName)
+        {
+            var window = GetWindow<AnalyticsEventEditor>("Analytics Event Editor");
+            window.TryShowWindow(eventName);
         }
 
-        private string ToLowerCamelCase(string snakeCaseString)
+        public static void CheckCloseOnDeleteEvent(string deletedEventName)
         {
-            if (string.IsNullOrEmpty(snakeCaseString)) return snakeCaseString;
-
-            var words = snakeCaseString.Split('_');
-            var result = new StringBuilder(words[0].ToLower());
-
-            for (int i = 1; i < words.Length; i++)
-            {
-                if (!string.IsNullOrEmpty(words[i]))
-                {
-                    result.Append(char.ToUpper(words[i][0]) + words[i].Substring(1).ToLower());
-                }
-            }
-
-            return result.ToString();
-        }
-
-        private string ToSnakeCase(string stringToConvert)
-        {
-            if (string.IsNullOrEmpty(stringToConvert)) return stringToConvert;
-
-            var result = new StringBuilder();
-            result.Append(char.ToLower(stringToConvert[0]));
-
-            for (int i = 1; i < stringToConvert.Length; i++)
-            {
-                // If the character is uppercase or a space, add an underscore
-                if (char.IsUpper(stringToConvert[i]) || stringToConvert[i] == ' ')
-                {
-                    result.Append('_');
-                }
-
-                result.Append(char.ToLower(stringToConvert[i]));
-            }
-
-            return result.ToString().Replace(" ", "");
-        }
-
-        #endregion
-
-        [MenuItem("Viva/Analytics/Event Creator")]
-        public static void ShowWindow()
-        {
-            GetWindow<AnalyticsEventCreatorTool>("Analytics Event Creator");
+            var window = GetWindow<AnalyticsEventEditor>("Analytics Event Editor");
+            var eventName = StringUtils.ToUpperCamelCase(window._eventName);
+            // If the event being edited is the one being deleted and the window is opened, close the window
+            if (eventName == deletedEventName)
+                window.Close();
         }
     }
 }
