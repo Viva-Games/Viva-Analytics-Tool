@@ -34,6 +34,23 @@ namespace Viva.Services.Analytics
             IsOpen = false;
         }
 
+        private void OnDestroy()
+        {
+            var outfile = CreateAllScriptString(StringUtils.ToUpperCamelCase(_eventName));
+            var assetPath = $"Assets/VivaAnalytics/Events/{_previousEventName}.cs";
+            if (HasChanges(outfile, assetPath))
+            {
+                if (!EditorUtility.DisplayDialog(
+                        "Unsaved Changes",
+                        "Your changes will be lost. Are you sure you want to continue?",
+                        "Yes", "No"))
+                {
+                    // Reopen the window to prevent it from closing
+                    EditorApplication.delayCall += () => ReOpenWindow();
+                }
+            }
+        }
+
         private void OnGUI()
         {
             // Display the description of the tool
@@ -198,7 +215,7 @@ namespace Viva.Services.Analytics
             // Remove all spaces from both strings
             var normalizedCurrentFile = StringUtils.Normalize(currentFile);
             var normalizedOutfile = StringUtils.Normalize(outfile);
-            return normalizedCurrentFile != normalizedOutfile;
+            return normalizedOutfile != normalizedCurrentFile;
         }
 
         #region Method Constructors
@@ -391,6 +408,14 @@ namespace Viva.Services.Analytics
             
             _eventName = newEventName;
             LoadParameters(newEventName);
+        }
+        
+        private void ReOpenWindow()
+        {
+            var window = GetWindow<AnalyticsEventEditor>("Analytics Event Editor");
+            window._eventName = _eventName;
+            window._previousEventName = _previousEventName;
+            window.LoadParameters(_previousEventName);
         }
         
         public static void ShowWindow(string eventName)
