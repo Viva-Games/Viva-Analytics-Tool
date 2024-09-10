@@ -1,5 +1,6 @@
 {
-    "name": "Analiytics",
+    "name": "VivaAnalytics",
+    "rootNamespace": "",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -34,7 +34,7 @@ namespace Viva.Services.Analytics
 			{ FTUE_STEP, _ftueStep },
 			{ FTUE_DESCRIPTION, _ftueDescription },
 		};
-	
+
 		public static void Track(int ftueStep, string ftueDescription) =>
 			AnalyticsService.TrackEvent(new FtueLandmark(ftueStep, ftueDescription));
 	}

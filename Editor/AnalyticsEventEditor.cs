@@ -30,20 +30,14 @@ namespace Viva.Services.Analytics
 
         private void OnDisable()
         {
-            AssertThatParameterListIsNotEmpty();
             IsOpen = false;
-        }
-
-        private void AssertThatParameterListIsNotEmpty()
-        {
-            if (_eventParameters.Count == 0)
-                Debug.LogError($"No parameters were added to the {_eventName} event. You must add at least one parameter.");
         }
 
         private void OnDestroy()
         {
             var outfile = CreateAllScriptString(StringUtils.ToUpperCamelCase(_eventName));
-            var assetPath = $"Assets/VivaAnalytics/Events/{_previousEventName}.cs";
+            var folderPath = AnalyticsEventManager.EVENTS_FOLDER;
+            var assetPath = $"{folderPath}/{_previousEventName}.cs";
             if (!HasChanges(outfile, assetPath)) return;
             if (!EditorUtility.DisplayDialog(
                     "Unsaved Changes",
@@ -125,7 +119,7 @@ namespace Viva.Services.Analytics
         private void LoadParameters(string scriptName)
         {
             scriptName = StringUtils.ToUpperCamelCase(scriptName);
-            var folderPath = "Assets/VivaAnalytics/Events";
+            var folderPath = AnalyticsEventManager.EVENTS_FOLDER;
             var assetPath = folderPath + $"/{scriptName}.cs";
             // If the script already exists, load the parameters
             if (File.Exists(assetPath))
@@ -164,7 +158,7 @@ namespace Viva.Services.Analytics
 
             scriptName = StringUtils.ToUpperCamelCase(scriptName);
 
-            var folderPath = "Assets/VivaAnalytics/Events";
+            var folderPath = AnalyticsEventManager.EVENTS_FOLDER;
             var assetPath = folderPath + $"/{scriptName}.cs";
 
             if (_eventParameters.Count == 0)
@@ -227,21 +221,9 @@ namespace Viva.Services.Analytics
         private string CreateAllScriptString(string scriptName)
         {
             var outfile = new StringBuilder();
-
+            
             if (_eventParameters.Count == 0)
-            {
-                outfile.AppendLine("using System.Collections.Generic;");
-                outfile.AppendLine("");
-                outfile.AppendLine("namespace Viva.Services.Analytics");
-                outfile.AppendLine("{");
-                outfile.AppendLine($"\tpublic class {scriptName} : IAnalyticsEvent");
-                outfile.AppendLine("\t{");
-                outfile.AppendLine("\t\tpublic string GetEventKey() => \"\";");
-                outfile.AppendLine("");
-                outfile.AppendLine("\t\tpublic Dictionary<string, object> GetTrackingFields() => new();");
-                outfile.AppendLine("\t}");
-                outfile.AppendLine("}");
-            }
+                outfile.Append(GetEventScriptWithoutParameters(scriptName));
             else
             {
                 var eventParameters = GetSnakeCaseEventParameters();
@@ -278,6 +260,27 @@ namespace Viva.Services.Analytics
                 outfile.AppendLine("}");
             }
 
+            return outfile.ToString();
+        }
+
+        public static string GetEventScriptWithoutParameters(string scriptName)
+        {
+            var outfile = new StringBuilder();
+            outfile.AppendLine("using System.Collections.Generic;");
+            outfile.AppendLine("");
+            outfile.AppendLine("namespace Viva.Services.Analytics");
+            outfile.AppendLine("{");
+            outfile.AppendLine($"\tpublic class {scriptName} : IAnalyticsEvent");
+            outfile.AppendLine("\t{");
+                
+            var eventKey = StringUtils.ToSnakeCase(scriptName);
+            outfile.AppendLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
+            outfile.AppendLine("");
+            outfile.AppendLine("\t\tpublic Dictionary<string, object> GetTrackingFields() => new();");
+            outfile.AppendLine("");
+            outfile.AppendLine($"\t\tpublic static void Track() => AnalyticsService.TrackEvent(new {scriptName}());");
+            outfile.AppendLine("\t}");
+            outfile.AppendLine("}");
             return outfile.ToString();
         }
 
@@ -414,15 +417,14 @@ namespace Viva.Services.Analytics
 
         private void TryShowWindow(string newEventName)
         {
-            if (IsOpen)
-                AssertThatParameterListIsNotEmpty();
             if (_eventName != null && _eventName != newEventName)
             {
                 var eventName = StringUtils.ToUpperCamelCase(_eventName);
                 // Creamos el outfile del nuevo evento.
                 var outfile = CreateAllScriptString(eventName);
                 // Obtenemos el asset path del evento anterior.
-                var assetPath = $"Assets/VivaAnalytics/Events/{_previousEventName}.cs";
+                var folderPath = AnalyticsEventManager.EVENTS_FOLDER;
+                var assetPath = $"{folderPath}/{_previousEventName}.cs";
                 if (HasChanges(outfile, assetPath))
                 {
                     if (!EditorUtility.DisplayDialog(

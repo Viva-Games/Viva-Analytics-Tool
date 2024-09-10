@@ -14,6 +14,8 @@ namespace Viva.Services.Analytics
         private string[] _eventNames;
         private bool _creatingEvent;
         private string _newEventName; // Declare as a class-level variable
+        
+        public const string EVENTS_FOLDER = "Assets/VivaAnalytics/Events";
 
         private void OnEnable()
         {
@@ -85,7 +87,7 @@ namespace Viva.Services.Analytics
                     {
                         // Delete the event
                         var upperCamelCaseName = StringUtils.ToUpperCamelCase(eventName);
-                        var folderPath = "Assets/VivaAnalytics/Events";
+                        var folderPath = EVENTS_FOLDER;
                         var filePath = $"{folderPath}/{upperCamelCaseName}.cs";
                         var metaPath = $"{folderPath}/{upperCamelCaseName}.meta";
                         File.Delete(filePath);
@@ -114,7 +116,7 @@ namespace Viva.Services.Analytics
 
         private void LoadEventNames()
         {
-            var folderPath = "Assets/VivaAnalytics/Events";
+            var folderPath = EVENTS_FOLDER;
             if (Directory.Exists(folderPath))
             {
                 // Get all the event names from the files in the Events folder and transform them to snake case
@@ -145,7 +147,7 @@ namespace Viva.Services.Analytics
             }
 
             string upperCamelCaseName = StringUtils.ToUpperCamelCase(_newEventName);
-            string folderPath = "Assets/VivaAnalytics/Events";
+            string folderPath = EVENTS_FOLDER;
             string filePath = $"{folderPath}/{upperCamelCaseName}.cs";
 
             if (!Directory.Exists(folderPath))
@@ -159,17 +161,7 @@ namespace Viva.Services.Analytics
 
             using (StreamWriter writer = new StreamWriter(filePath))
             {
-                writer.WriteLine("using System.Collections.Generic;");
-                writer.WriteLine("");
-                writer.WriteLine("namespace Viva.Services.Analytics");
-                writer.WriteLine("{");
-                writer.WriteLine($"\tpublic class {upperCamelCaseName} : IAnalyticsEvent");
-                writer.WriteLine("\t{");
-                writer.WriteLine("\t\tpublic string GetEventKey() => \"\";");
-                writer.WriteLine("");
-                writer.WriteLine("\t\tpublic Dictionary<string, object> GetTrackingFields() => new();");
-                writer.WriteLine("\t}");
-                writer.WriteLine("}");
+                writer.Write(AnalyticsEventEditor.GetEventScriptWithoutParameters(upperCamelCaseName));
             }
 
             _newEventName = string.Empty;
