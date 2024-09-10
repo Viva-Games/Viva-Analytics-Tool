@@ -24,12 +24,12 @@ namespace Viva.Services.Analytics
             global::Firebase.Analytics.FirebaseAnalytics.LogEvent(eventKey, parameters);
         }
 
-        protected internal override void Initialize()
+        protected override void Initialize()
         {
             _isInitialized = true;
         }
 
-        protected internal override bool IsInitialized() => _isInitialized;
+        protected override bool IsInitialized() => _isInitialized;
 
         private Parameter[] BuildParameters(Dictionary<string, object> eventParams, List<string> stringParams)
         {
