@@ -161,13 +161,6 @@ namespace Viva.Services.Analytics
             var folderPath = AnalyticsEventManager.EVENTS_FOLDER;
             var assetPath = folderPath + $"/{scriptName}.cs";
 
-            if (_eventParameters.Count == 0)
-            {
-                EditorUtility.DisplayDialog("No parameters",
-                    "The event must have at least one parameter.", "Ok");
-                return;
-            }
-
             SaveEventScript(scriptName, assetPath);
         }
 
