@@ -14,6 +14,7 @@ namespace Viva.Services.Analytics
         private string[] _eventNames;
         private bool _creatingEvent;
         private string _newEventName; // Declare as a class-level variable
+        private Vector2 _scrollPosition = Vector2.zero;
         
         public const string EVENTS_FOLDER = "Assets/VivaAnalytics/Events";
 
@@ -31,6 +32,7 @@ namespace Viva.Services.Analytics
             GUILayout.Space(10);
 
             EditorGUILayout.BeginVertical();
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition, GUILayout.ExpandHeight(true));
 
             if (_eventNames == null || _eventNames.Length == 0)
             {
@@ -39,6 +41,8 @@ namespace Viva.Services.Analytics
             }
             else
                 DisplayEvents();
+            
+            EditorGUILayout.EndScrollView();
 
             GUILayout.Space(10);
 
