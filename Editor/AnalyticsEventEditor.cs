@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
 using Viva.Services.Utils;
+using UnityEditorInternal;
 
 namespace Viva.Services.Analytics
 {
@@ -20,12 +21,34 @@ namespace Viva.Services.Analytics
         private string _previousEventName;
         private List<EventParameter> _eventParameters = new();
         private string[] _parameterTypes = new[] { "int", "string", "double" };
+        private ReorderableList _reorderableList;
 
         private void OnEnable()
         {
             // Set the minimum size of the window
             minSize = new Vector2(600, 200);
             LoadParameters(_eventName);
+            _reorderableList = new ReorderableList(_eventParameters, typeof(EventParameter), true, false, true, true);
+            _reorderableList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            {
+                var param = _eventParameters[index];
+                float halfWidth = rect.width / 2f;
+                rect.y += 2;
+                rect.height = EditorGUIUtility.singleLineHeight;
+                param.Name = EditorGUI.TextField(new Rect(rect.x, rect.y, halfWidth - 5, rect.height), param.Name);
+                int currentIndex = Array.IndexOf(_parameterTypes, param.Type);
+                if (currentIndex == -1) currentIndex = 0;
+                param.Type = _parameterTypes[EditorGUI.Popup(new Rect(rect.x + halfWidth, rect.y, halfWidth - 5, rect.height), currentIndex, _parameterTypes)];
+            };
+            _reorderableList.onAddCallback = (ReorderableList list) =>
+            {
+                var previousType = _eventParameters.LastOrDefault()?.Type ?? "int";
+                _eventParameters.Add(new EventParameter("new_param", previousType));
+            };
+            _reorderableList.onRemoveCallback = (ReorderableList list) =>
+            {
+                _eventParameters.RemoveAt(list.index);
+            };
         }
 
         private void OnDisable()
@@ -60,53 +83,21 @@ namespace Viva.Services.Analytics
             // Display the event name field
             EditorGUILayout.BeginHorizontal();
             _eventName = EditorGUILayout.TextField("Event Name", _eventName);
-
             EditorGUILayout.EndHorizontal();
 
             // Display the parameters section
             EditorGUILayout.LabelField("Parameters");
-
-            if (_eventParameters.Count != 0)
+            if (_reorderableList != null)
             {
-                for (int i = 0; i < _eventParameters.Count; i++)
-                {
-                    EditorGUILayout.BeginHorizontal();
-                    _eventParameters[i].Name = EditorGUILayout.TextField("Name", _eventParameters[i].Name);
-
-                    // Determine the current index of the parameter type
-                    int currentIndex = Array.IndexOf(_parameterTypes, _eventParameters[i].Type);
-                    if (currentIndex == -1) currentIndex = 0; // Default to the first type if not found
-                    // Create the popup and update the parameter type based on the selected index
-                    currentIndex = EditorGUILayout.Popup("Type", currentIndex, _parameterTypes);
-                    _eventParameters[i].Type = _parameterTypes[currentIndex];
-
-                    if (GUILayout.Button("Remove"))
-                    {
-                        _eventParameters.RemoveAt(i);
-                        GUI.FocusControl(null);
-                        EditorGUILayout.EndHorizontal();
-                        break; // Exit the loop to avoid modifying the collection while iterating
-                    }
-
-                    EditorGUILayout.EndHorizontal();
-                }
+                _reorderableList.DoLayoutList();
             }
 
             EditorGUILayout.BeginHorizontal();
-
-            if (GUILayout.Button("Add Parameter"))
-            {
-                var previousType = _eventParameters.LastOrDefault()?.Type ?? "int";
-                _eventParameters.Add(new EventParameter("new_param", previousType));
-                GUI.FocusControl(null);
-            }
-
             if (GUILayout.Button("Clear Parameters"))
             {
                 _eventParameters.Clear();
                 GUI.FocusControl(null);
             }
-
             EditorGUILayout.EndHorizontal();
 
             if (GUILayout.Button("Save"))
