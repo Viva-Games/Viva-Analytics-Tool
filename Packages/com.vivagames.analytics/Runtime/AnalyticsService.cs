@@ -17,6 +17,9 @@ namespace Viva.Services.Analytics
 
         private static readonly List<AAnalyticsTracker> _trackers = new List<AAnalyticsTracker>();
         private static readonly Dictionary<string, Func<object>> _commonParameters = new Dictionary<string, Func<object>>();
+        private static readonly Dictionary<string, string> _userProperties = new Dictionary<string, string>();
+        private static string _userId;
+        private static bool _hasUserId;
 
         // Se crea una sola vez para no generar basura en cada paso del FTUE.
         private static readonly EV_FTUE _ftueEvent = new EV_FTUE();
@@ -110,6 +113,47 @@ namespace Viva.Services.Analytics
             if (!tracker.IsInitialized())
             {
                 tracker.Initialize();
+            }
+
+            // Los trackers que llegan tarde reciben las propiedades de usuario ya registradas.
+            foreach (var pair in _userProperties)
+            {
+                tracker.SetUserProperty(pair.Key, pair.Value);
+            }
+            if (_hasUserId)
+            {
+                tracker.SetUserId(_userId);
+            }
+        }
+
+        /// <summary>
+        /// Propiedad de usuario (segmento, país, tipo de jugador...). Se envía a todos los trackers,
+        /// también a los que se añadan más tarde. En Firebase equivale a SetUserProperty.
+        /// </summary>
+        public static void SetUserProperty(string name, string value)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("[Analytics] The user property name cannot be empty.", nameof(name));
+            }
+
+            _userProperties[name] = value;
+            for (int i = 0; i < _trackers.Count; i++)
+            {
+                _trackers[i].SetUserProperty(name, value);
+            }
+        }
+
+        /// <summary>
+        /// Identificador del usuario. Se envía a todos los trackers, también a los que se añadan más tarde.
+        /// </summary>
+        public static void SetUserId(string userId)
+        {
+            _userId = userId;
+            _hasUserId = true;
+            for (int i = 0; i < _trackers.Count; i++)
+            {
+                _trackers[i].SetUserId(userId);
             }
         }
 

@@ -20,5 +20,20 @@
         /// Tracks the given event.
         /// </summary>
         public abstract void TrackEvent(IAnalyticsEvent eventToTrack);
+
+        /// <summary>
+        /// Propiedad de usuario (segmento, país...). Por defecto no hace nada, para que los trackers
+        /// antiguos sigan compilando; cada SDK la implementa como pueda.
+        /// </summary>
+        public virtual void SetUserProperty(string name, string value)
+        {
+        }
+
+        /// <summary>
+        /// Identificador del usuario. Por defecto no hace nada.
+        /// </summary>
+        public virtual void SetUserId(string userId)
+        {
+        }
     }
 }

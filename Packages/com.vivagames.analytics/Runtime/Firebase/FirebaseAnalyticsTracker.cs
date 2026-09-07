@@ -21,6 +21,9 @@ namespace Viva.Services.Analytics
         private bool _firebaseReady;
         private bool _firebaseFailed;
         private readonly Queue<PendingEvent> _pending = new Queue<PendingEvent>();
+        private readonly Dictionary<string, string> _pendingUserProperties = new Dictionary<string, string>();
+        private string _pendingUserId;
+        private bool _hasPendingUserId;
 
         /// <summary>
         /// Si es true, cada evento se escribe también en la consola de Unity.
@@ -31,6 +34,12 @@ namespace Viva.Services.Analytics
         /// true cuando Firebase ha resuelto sus dependencias y los eventos se envían de verdad.
         /// </summary>
         public bool IsFirebaseReady => _firebaseReady;
+
+        /// <summary>
+        /// Se dispara en el hilo principal cuando Firebase ha resuelto sus dependencias y ya se ha vaciado la cola.
+        /// Es el sitio para lo que necesita Firebase listo: Crashlytics, consentimiento, otros productos de Firebase...
+        /// </summary>
+        public event Action FirebaseReady;
 
         protected override void Initialize()
         {
@@ -53,7 +62,9 @@ namespace Viva.Services.Analytics
                 {
                     _firebaseReady = true;
                     Debug.Log("[Analytics] Firebase ready to use.");
+                    FlushPendingUserData();
                     FlushPending();
+                    RaiseFirebaseReady();
                 }
                 else
                 {
@@ -88,12 +99,66 @@ namespace Viva.Services.Analytics
             }
         }
 
+        public override void SetUserProperty(string name, string value)
+        {
+            if (_firebaseReady)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetUserProperty(name, value);
+            }
+            else if (!_firebaseFailed)
+            {
+                _pendingUserProperties[name] = value;
+            }
+        }
+
+        public override void SetUserId(string userId)
+        {
+            if (_firebaseReady)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetUserId(userId);
+            }
+            else if (!_firebaseFailed)
+            {
+                _pendingUserId = userId;
+                _hasPendingUserId = true;
+            }
+        }
+
         private void FlushPending()
         {
             while (_pending.Count > 0)
             {
                 PendingEvent pending = _pending.Dequeue();
                 global::Firebase.Analytics.FirebaseAnalytics.LogEvent(pending.EventKey, pending.Parameters);
+            }
+        }
+
+        // Las propiedades de usuario van antes que los eventos en cola para que estos ya las lleven.
+        private void FlushPendingUserData()
+        {
+            foreach (var pair in _pendingUserProperties)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetUserProperty(pair.Key, pair.Value);
+            }
+            _pendingUserProperties.Clear();
+
+            if (_hasPendingUserId)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetUserId(_pendingUserId);
+                _hasPendingUserId = false;
+                _pendingUserId = null;
+            }
+        }
+
+        private void RaiseFirebaseReady()
+        {
+            try
+            {
+                FirebaseReady?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[Analytics] FirebaseReady handler failed: " + e);
             }
         }
 

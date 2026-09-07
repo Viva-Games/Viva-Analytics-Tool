@@ -24,6 +24,16 @@ namespace Viva.Services.Analytics
             Debug.Log(Format(eventToTrack));
         }
 
+        public override void SetUserProperty(string name, string value)
+        {
+            Debug.Log($"ANALYTICS USER PROPERTY: {name} = {value}");
+        }
+
+        public override void SetUserId(string userId)
+        {
+            Debug.Log($"ANALYTICS USER ID: {userId}");
+        }
+
         /// <summary>
         /// Representación de un evento para la consola: ANALYTICS: event_key (param = value, ...).
         /// </summary>
