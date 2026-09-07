@@ -10,7 +10,8 @@ namespace Viva.Core.Editor
 {
     /// <summary>
     /// Ventana Viva > Package Installer: muestra los módulos disponibles, cuáles están instalados,
-    /// si hay una versión nueva en el repositorio, y permite instalarlos, actualizarlos o quitarlos.
+    /// si hay una release nueva de cada uno en el repositorio, y permite instalarlos, actualizarlos o quitarlos.
+    /// Cada módulo se versiona por separado: sus releases son los tags con su prefijo (analytics/v2.0.1).
     /// </summary>
     public class VivaPackageInstallerWindow : EditorWindow
     {
@@ -20,15 +21,18 @@ namespace Viva.Core.Editor
         private string _listError;
 
         private bool _checkingUpdates;
+        private bool _updatesChecked;
         private string _updatesError;
-        private VivaVersion? _latestVersion;
+
+        // Última release publicada de cada módulo, por nombre de paquete.
+        private readonly Dictionary<string, VivaVersion> _latestByModule = new Dictionary<string, VivaVersion>();
         private Vector2 _scroll;
 
         [MenuItem("Viva/Package Installer")]
         public static void Open()
         {
             var window = GetWindow<VivaPackageInstallerWindow>("Viva Packages");
-            window.minSize = new Vector2(540, 340);
+            window.minSize = new Vector2(560, 340);
         }
 
         private void OnEnable()
@@ -73,13 +77,13 @@ namespace Viva.Core.Editor
 
             EditorGUILayout.BeginHorizontal();
             if (_checkingUpdates)
-                EditorGUILayout.LabelField("Latest release: checking...");
+                EditorGUILayout.LabelField("Releases: checking...");
             else if (!string.IsNullOrEmpty(_updatesError))
-                EditorGUILayout.LabelField("Latest release: unknown");
-            else if (_latestVersion.HasValue)
-                EditorGUILayout.LabelField($"Latest release: {_latestVersion.Value.ToTag()}");
+                EditorGUILayout.LabelField("Releases: unknown");
+            else if (_updatesChecked)
+                EditorGUILayout.LabelField($"Releases: {_latestByModule.Count} module(s) with a published version");
             else
-                EditorGUILayout.LabelField("Latest release: no release tags found");
+                EditorGUILayout.LabelField("Releases: not checked");
 
             using (new EditorGUI.DisabledScope(_checkingUpdates))
             {
@@ -118,23 +122,24 @@ namespace Viva.Core.Editor
 
             bool busy = VivaPackageOperations.IsBusy || !_listLoaded;
             _installed.TryGetValue(module.PackageName, out var info);
+            string latestTag = LatestTag(module);
 
             DrawLegacyNotice(module, info, busy);
 
             EditorGUILayout.BeginHorizontal();
             if (info == null)
             {
-                GUILayout.Label("Not installed", EditorStyles.miniLabel);
+                GUILayout.Label(latestTag == null ? "Not installed" : $"Not installed (latest release: {latestTag})", EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
 
-                var tag = TargetTag();
-                using (new EditorGUI.DisabledScope(busy || tag == null))
+                var reference = TargetReference(module, null);
+                using (new EditorGUI.DisabledScope(busy || reference == null))
                 {
-                    if (GUILayout.Button(tag == null ? "Install" : $"Install {tag}", GUILayout.Width(140)))
+                    if (GUILayout.Button(reference == null ? "Install" : $"Install {reference}", GUILayout.Width(170)))
                     {
                         // Si hay una instalación antigua por .unitypackage, avisa y la retira antes de instalar.
                         if (LegacyInstallCleaner.PrepareForInstall(module))
-                            VivaPackageOperations.Install(module, tag);
+                            VivaPackageOperations.Install(module, reference);
                     }
                 }
             }
@@ -149,15 +154,15 @@ namespace Viva.Core.Editor
                 }
                 else
                 {
-                    if (IsOutdated(info))
+                    if (IsOutdated(module, info))
                     {
                         using (new EditorGUI.DisabledScope(busy))
                         {
-                            if (GUILayout.Button($"Update to {_latestVersion.Value.ToTag()}", GUILayout.Width(140)))
-                                VivaPackageOperations.Install(module, _latestVersion.Value.ToTag());
+                            if (GUILayout.Button($"Update to {latestTag}", GUILayout.Width(170)))
+                                VivaPackageOperations.Install(module, latestTag);
                         }
                     }
-                    else if (_latestVersion.HasValue)
+                    else if (latestTag != null)
                     {
                         GUILayout.Label("Up to date", EditorStyles.miniLabel);
                     }
@@ -222,14 +227,14 @@ namespace Viva.Core.Editor
             {
                 using (new EditorGUI.DisabledScope(VivaPackageOperations.IsBusy))
                 {
-                    if (GUILayout.Button($"Update all ({outdated.Count}) to {_latestVersion.Value.ToTag()}"))
-                        VivaPackageOperations.InstallAll(outdated, _latestVersion.Value.ToTag());
+                    if (GUILayout.Button($"Update all ({outdated.Count})"))
+                        VivaPackageOperations.InstallAll(outdated, LatestTag);
                 }
             }
 
             EditorGUILayout.HelpBox(
-                "Installing or updating writes to Packages/manifest.json and packages-lock.json. " +
-                "Commit both files so everyone in the project gets the same versions.",
+                "Each module has its own version and release tags. Installing or updating writes to " +
+                "Packages/manifest.json and packages-lock.json: commit both files so everyone in the project gets the same versions.",
                 MessageType.None);
         }
 
@@ -249,23 +254,29 @@ namespace Viva.Core.Editor
             }
         }
 
-        private bool IsOutdated(PackageInfo info)
+        /// <summary>Tag de la última release publicada del módulo, o null si no se conoce.</summary>
+        private string LatestTag(VivaModule module)
         {
-            if (!_latestVersion.HasValue) return false;
+            return _latestByModule.TryGetValue(module.PackageName, out var latest)
+                ? VivaRepository.BuildTag(module, latest)
+                : null;
+        }
+
+        private bool IsOutdated(VivaModule module, PackageInfo info)
+        {
+            if (!_latestByModule.TryGetValue(module.PackageName, out var latest)) return false;
             if (!VivaVersion.TryParse(info.version, out var installed)) return false;
-            return _latestVersion.Value > installed;
+            return latest > installed;
         }
 
         private List<VivaModule> OutdatedModules()
         {
             var result = new List<VivaModule>();
-            if (!_latestVersion.HasValue) return result;
-
             foreach (var module in VivaModuleCatalog.Modules)
             {
                 if (_installed.TryGetValue(module.PackageName, out var info)
                     && info.source != PackageSource.Embedded
-                    && IsOutdated(info))
+                    && IsOutdated(module, info))
                 {
                     result.Add(module);
                 }
@@ -274,27 +285,26 @@ namespace Viva.Core.Editor
         }
 
         /// <summary>
-        /// Referencia git a instalar para un módulo nuevo:
-        /// 1. Si el core se instaló desde una rama o un commit (no desde un tag de versión), esa misma
-        ///    referencia, para que todos los módulos vayan a la par. Sirve para probar antes de publicar un tag.
-        /// 2. Si no, la última release conocida.
-        /// 3. Si no se ha podido consultar el repositorio, el tag de la misma versión que tenga el core.
+        /// Referencia git a instalar para un módulo:
+        /// 1. Si el core se instaló desde una rama o un commit (no desde un tag de release), esa misma
+        ///    referencia, para que todos los módulos vayan a la par. Sirve para probar antes de publicar.
+        /// 2. Si no, la última release publicada del módulo.
+        /// 3. Si no se ha podido consultar el repositorio y el módulo ya está instalado, su propia versión.
         /// </summary>
-        private string TargetTag()
+        private string TargetReference(VivaModule module, PackageInfo info)
         {
-            _installed.TryGetValue(VivaModuleCatalog.CorePackageName, out var core);
-
-            if (core != null && core.source == PackageSource.Git)
+            if (_installed.TryGetValue(VivaModuleCatalog.CorePackageName, out var core) && core.source == PackageSource.Git)
             {
                 var revision = core.git != null ? core.git.revision : null;
-                if (!string.IsNullOrEmpty(revision) && !VivaVersion.TryParse(revision, out _))
+                if (!string.IsNullOrEmpty(revision) && !VivaRepository.TryParseTag(revision, out _, out _))
                     return revision;
             }
 
-            if (_latestVersion.HasValue) return _latestVersion.Value.ToTag();
+            var latestTag = LatestTag(module);
+            if (latestTag != null) return latestTag;
 
-            if (core != null && VivaVersion.TryParse(core.version, out var coreVersion))
-                return coreVersion.ToTag();
+            if (info != null && VivaVersion.TryParse(info.version, out var installedVersion))
+                return VivaRepository.BuildTag(module, installedVersion);
 
             return null;
         }
@@ -347,12 +357,17 @@ namespace Viva.Core.Editor
                 }
                 else
                 {
-                    _latestVersion = null;
+                    _updatesChecked = true;
+                    _latestByModule.Clear();
                     foreach (var tag in tags)
                     {
-                        if (!VivaVersion.TryParse(tag, out var version)) continue;
-                        if (!_latestVersion.HasValue || version > _latestVersion.Value)
-                            _latestVersion = version;
+                        if (!VivaRepository.TryParseTag(tag, out var prefix, out var version)) continue;
+
+                        var module = VivaModuleCatalog.FindByTagPrefix(prefix);
+                        if (module == null) continue;
+
+                        if (!_latestByModule.TryGetValue(module.PackageName, out var current) || version > current)
+                            _latestByModule[module.PackageName] = version;
                     }
                 }
                 Repaint();

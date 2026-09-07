@@ -20,12 +20,12 @@ The packages are integrators: they do not install third-party SDKs. Each project
 1. In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**. Paste:
 
    ```
-   https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#v2.0.0
+   https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.0.0
    ```
 
-   Replace `v2.0.0` with the release you want. Releases are the repository tags with that format.
+   Replace `core/v2.0.0` with the release you want. Each module is versioned on its own: its releases are the repository tags with its prefix, such as `core/v2.0.0` or `analytics/v2.0.1`.
 
-2. Open **Viva > Package Installer** and press **Install** next to each module you need. The window reads the release tags from GitHub and installs every module at the same version as the core.
+2. Open **Viva > Package Installer** and press **Install** next to each module you need. The window reads the release tags from GitHub and installs the latest release of each module.
 
 3. On its first run Viva Analytics offers to run the initial setup: it creates the events folder, imports the standard events and generates `AnalyticsInit.cs`. You can also run it later from **Viva > Analytics > Setup** with **Run full setup**.
 
@@ -33,7 +33,7 @@ Every install or update writes to `Packages/manifest.json` and `Packages/package
 
 ## Updating
 
-Open **Viva > Package Installer** and press **Check for updates**. Modules with a newer release show an **Update** button; **Update all** updates every module at once, the core last.
+Open **Viva > Package Installer** and press **Check for updates**. Modules with a newer release show an **Update** button; **Update all** updates every outdated module to its own latest release, the core last. A module can be updated without touching the others.
 
 Versions are pinned to a git tag. Nothing updates on its own, and the lock file stores the exact commit, so every team member gets the same version after pulling the project.
 
@@ -123,19 +123,23 @@ If a project has an assembly definition that references the old `VivaAnalytics` 
 - The Firebase SDK is not committed. Import it into the development project to compile and test the Firebase tracker.
 - Assets under `Packages/` need their `.meta` files committed. Unity generates them when the project is opened.
 
-### Releasing a version
+### Releasing a version of a module
 
-1. Set the same `version` in `Packages/com.vivagames.core/package.json` and `Packages/com.vivagames.analytics/package.json`.
-2. Add the entry to `CHANGELOG.md`.
-3. Commit, create the tag `vX.Y.Z` and push it. The installer only considers tags with that exact format.
+Each package has its own version, changelog and tags, so a release touches only the module that changed:
+
+1. Bump `version` in the module's `package.json`, for example `Packages/com.vivagames.analytics/package.json`.
+2. Add the entry to the module's `CHANGELOG.md`, next to its `package.json`.
+3. Commit, create the tag with the module prefix and push it: `analytics/v2.0.1`, `core/v2.1.0`. The installer only considers tags with the `<prefix>/vX.Y.Z` format; the prefix of each module is declared in `VivaModuleCatalog`.
+
+Keep the editor utilities the modules take from the core (`ScriptingDefines`, `VivaPackageUtility`) backwards compatible, since a project may run any combination of module versions.
 
 ### Adding a module
 
 1. Create `Packages/com.vivagames.<module>` with its `package.json`, assemblies and `.meta` files.
-2. Add one line to `VivaModuleCatalog.Modules` in the core package.
+2. Add one line to `VivaModuleCatalog.Modules` in the core package, with the tag prefix the module will use for its releases.
 3. If the module depends on a third-party SDK, compile its integration in a separate assembly with a define constraint, and enable the define from an editor script when the SDK is detected (see `FirebaseSdkDetector` in the analytics package).
 
 ## Limitations worth knowing
 
-- The Package Manager cannot declare dependencies between packages installed from git. That is why the core has the installer window and each module is installed from it, always at the same version as the core.
+- The Package Manager cannot declare dependencies between packages installed from git. That is why the core has the installer window and each module is installed from it, at its own latest release.
 - The Package Manager does not check GitHub for new releases by itself; the installer window does it through `git ls-remote`.

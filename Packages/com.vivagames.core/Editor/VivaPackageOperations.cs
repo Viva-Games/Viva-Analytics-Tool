@@ -46,10 +46,13 @@ namespace Viva.Core.Editor
             EditorApplication.delayCall += TryRunNext;
         }
 
-        /// <summary>Instala el módulo en el tag indicado. Si ya está instalado, lo sustituye por esa versión.</summary>
-        public static void Install(VivaModule module, string tag)
+        /// <summary>
+        /// Instala el módulo en la referencia git indicada (tag de release, rama o commit).
+        /// Si ya está instalado, lo sustituye por esa versión.
+        /// </summary>
+        public static void Install(VivaModule module, string reference)
         {
-            Enqueue(ADD_PREFIX + VivaRepository.BuildPackageUrl(module.FolderName, tag));
+            Enqueue(ADD_PREFIX + VivaRepository.BuildPackageUrl(module.FolderName, reference));
         }
 
         /// <summary>Quita el módulo del proyecto.</summary>
@@ -59,18 +62,18 @@ namespace Viva.Core.Editor
         }
 
         /// <summary>
-        /// Instala o actualiza varios módulos al mismo tag. El core va el último para que la recarga
-        /// del propio instalador no interrumpa al resto.
+        /// Instala o actualiza varios módulos, cada uno a la referencia que devuelva referenceFor.
+        /// El core va el último para que la recarga del propio instalador no interrumpa al resto.
         /// </summary>
-        public static void InstallAll(IEnumerable<VivaModule> modules, string tag)
+        public static void InstallAll(IEnumerable<VivaModule> modules, Func<VivaModule, string> referenceFor)
         {
             VivaModule core = null;
             foreach (var module in modules)
             {
                 if (module.IsCore) core = module;
-                else Install(module, tag);
+                else Install(module, referenceFor(module));
             }
-            if (core != null) Install(core, tag);
+            if (core != null) Install(core, referenceFor(core));
         }
 
         public static void ClearLastMessage()

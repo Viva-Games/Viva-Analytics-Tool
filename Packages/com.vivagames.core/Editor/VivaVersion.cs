@@ -62,9 +62,6 @@ namespace Viva.Core.Editor
 
         public override string ToString() => $"{Major}.{Minor}.{Patch}";
 
-        /// <summary>Nombre del tag de git que corresponde a esta versión (v2.0.0).</summary>
-        public string ToTag() => VivaRepository.TagPrefix + ToString();
-
         public static bool operator >(VivaVersion a, VivaVersion b) => a.CompareTo(b) > 0;
         public static bool operator <(VivaVersion a, VivaVersion b) => a.CompareTo(b) < 0;
         public static bool operator >=(VivaVersion a, VivaVersion b) => a.CompareTo(b) >= 0;
