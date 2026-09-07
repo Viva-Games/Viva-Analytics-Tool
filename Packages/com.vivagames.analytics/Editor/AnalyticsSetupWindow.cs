@@ -330,9 +330,9 @@ namespace Viva.Services.Analytics
                 migration.Parameters = LegacyTrackerParser.Parse(source);
 
                 // Cualquier otra línea que el proyecto añadiera al tracker se conserva para revisarla.
-                var resolved = migration.Parameters.ResolvedConstants;
+                var parsed = migration.Parameters;
                 migration.AddCustomLines("FirebaseAnalytics.cs", LegacyCustomCodeFinder.FindCustomLines(
-                    source, AnalyticsPackage.ReadLegacyTemplates("FirebaseAnalytics"), line => IsMigratedTrackerLine(line, resolved)));
+                    source, AnalyticsPackage.ReadLegacyTemplates("FirebaseAnalytics"), line => IsMigratedTrackerLine(line, parsed)));
 
                 File.Copy(LEGACY_TRACKER_PATH, LEGACY_BACKUP_FOLDER + "/FirebaseAnalytics.legacy.txt", true);
                 DeleteAsset(LEGACY_TRACKER_PATH);
@@ -387,9 +387,14 @@ namespace Viva.Services.Analytics
             CompilationPipeline.RequestScriptCompilation();
 
             var summary = new StringBuilder();
-            summary.Append(migration.ParameterCount > 0
-                ? migration.ParameterCount + " common parameter(s) were moved to RegisterCommonParameters() in " + target + ". Review them: the value expressions were copied as they were."
-                : "No common parameters were found in the old FirebaseAnalytics.cs.");
+            if (migration.ParameterCount == 0)
+                summary.Append("No common parameters were found in the old FirebaseAnalytics.cs.");
+            else if (migration.Parameters.IsSimpleBody)
+                summary.Append(migration.ParameterCount + " common parameter(s) were moved to RegisterCommonParameters() in " + target + ". Review them: the value expressions were copied as they were.");
+            else
+                summary.Append(migration.ParameterCount + " common parameter(s) were found, but the old code computed their values with its own logic. " +
+                               "The original code and the new registrations are in RegisterCommonParameters() of " + target + " as comments: rewrite each lambda and uncomment it. " +
+                               "Until then those parameters are NOT sent.");
 
             if (migration.CustomLines.Count > 0)
             {
@@ -402,13 +407,19 @@ namespace Viva.Services.Analytics
             EditorUtility.DisplayDialog("Migration done", summary.ToString(), "OK");
         }
 
-        /// <summary>Líneas del tracker antiguo que ya se han trasladado como parámetros comunes.</summary>
-        private static bool IsMigratedTrackerLine(string line, List<string> resolvedConstants)
+        /// <summary>
+        /// Líneas del tracker antiguo que ya se han trasladado como parámetros comunes: las llamadas a Add,
+        /// las constantes usadas como clave y, si el cuerpo tenía lógica propia, todo el cuerpo (se copia entero
+        /// junto a los parámetros para no duplicarlo en el bloque de código propio).
+        /// </summary>
+        private static bool IsMigratedTrackerLine(string line, LegacyTrackerParser.Result parsed)
         {
             if (line.Contains("new Parameter(") || line.Contains("stringParams.Add(")) return true;
 
             var match = ConstLineRegex.Match(line);
-            return match.Success && resolvedConstants.Contains(match.Groups[1].Value);
+            if (match.Success && parsed.ResolvedConstants.Contains(match.Groups[1].Value)) return true;
+
+            return !parsed.IsSimpleBody && parsed.BodyLines.Contains(line.Trim());
         }
 
         private static void WriteMigrationNotes(MigrationData migration, string initPath)
@@ -577,10 +588,29 @@ namespace Viva.Services.Analytics
         {
             if (migration == null || migration.ParameterCount == 0) return string.Empty;
 
+            var parsed = migration.Parameters;
             var block = new StringBuilder();
             block.Append(CODE_INDENT).Append("// Common parameters migrated from the old FirebaseAnalytics.cs (backup in " + LEGACY_BACKUP_FOLDER + ").").Append(newLine);
-            block.Append(CODE_INDENT).Append("// Review them: value expressions were copied as they were, and any condition around them was not.").Append(newLine);
-            foreach (var line in LegacyTrackerParser.BuildRegistrationLines(migration.Parameters))
+
+            if (parsed.IsSimpleBody)
+            {
+                block.Append(CODE_INDENT).Append("// Review them: value expressions were copied as they were.").Append(newLine);
+            }
+            else
+            {
+                // El cuerpo antiguo calculaba los valores con su propia lógica una vez por evento. Se copia entero como
+                // comentario para que cada lambda nueva pueda reproducir ese cálculo.
+                block.Append(CODE_INDENT).Append("// The old InsertCommonParameters() computed the values with the logic below, once per event.").Append(newLine);
+                block.Append(CODE_INDENT).Append("// Each lambda runs on every event, so move that logic inside each lambda and then uncomment the registrations.").Append(newLine);
+                block.Append(CODE_INDENT).Append("// --- original code ---").Append(newLine);
+                foreach (var line in parsed.BodyLines)
+                {
+                    block.Append(CODE_INDENT).Append("// ").Append(line).Append(newLine);
+                }
+                block.Append(CODE_INDENT).Append("// --- registrations to rewrite ---").Append(newLine);
+            }
+
+            foreach (var line in LegacyTrackerParser.BuildRegistrationLines(parsed))
             {
                 block.Append(CODE_INDENT).Append(line).Append(newLine);
             }

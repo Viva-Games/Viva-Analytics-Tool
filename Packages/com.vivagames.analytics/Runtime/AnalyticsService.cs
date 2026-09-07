@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Viva.Services.Analytics.Consent;
 
 namespace Viva.Services.Analytics
 {
@@ -20,6 +21,7 @@ namespace Viva.Services.Analytics
         private static readonly Dictionary<string, string> _userProperties = new Dictionary<string, string>();
         private static string _userId;
         private static bool _hasUserId;
+        private static Dictionary<ConsentSignal, bool> _consent;
 
         // Se crea una sola vez para no generar basura en cada paso del FTUE.
         private static readonly EV_FTUE _ftueEvent = new EV_FTUE();
@@ -115,7 +117,11 @@ namespace Viva.Services.Analytics
                 tracker.Initialize();
             }
 
-            // Los trackers que llegan tarde reciben las propiedades de usuario ya registradas.
+            // Los trackers que llegan tarde reciben el consentimiento y las propiedades de usuario ya registradas.
+            if (_consent != null)
+            {
+                tracker.SetConsent(_consent);
+            }
             foreach (var pair in _userProperties)
             {
                 tracker.SetUserProperty(pair.Key, pair.Value);
@@ -123,6 +129,43 @@ namespace Viva.Services.Analytics
             if (_hasUserId)
             {
                 tracker.SetUserId(_userId);
+            }
+        }
+
+        /// <summary>
+        /// Primer tracker registrado del tipo indicado, o null. Útil para engancharse a algo específico de un SDK,
+        /// por ejemplo el evento FirebaseReady del tracker de Firebase.
+        /// </summary>
+        public static T GetTracker<T>() where T : AAnalyticsTracker
+        {
+            for (int i = 0; i < _trackers.Count; i++)
+            {
+                if (_trackers[i] is T typed) return typed;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Señales de Google Consent Mode, normalmente el resultado de <see cref="ConsentModeMapper.Map"/> cuando el CMP
+        /// termina. Se envían a todos los trackers, también a los que se añadan más tarde; cada uno las aplica en cuanto
+        /// su SDK está listo.
+        /// </summary>
+        public static void SetConsent(IReadOnlyDictionary<ConsentSignal, bool> signals)
+        {
+            if (signals == null)
+            {
+                throw new ArgumentNullException(nameof(signals));
+            }
+
+            _consent = new Dictionary<ConsentSignal, bool>();
+            foreach (var pair in signals)
+            {
+                _consent[pair.Key] = pair.Value;
+            }
+
+            for (int i = 0; i < _trackers.Count; i++)
+            {
+                _trackers[i].SetConsent(_consent);
             }
         }
 

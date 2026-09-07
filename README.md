@@ -106,6 +106,17 @@ FtueLandmark.Track(1, "First step of the tutorial");
 AdImpression.Track(adName, adPlatform, adSource, adUnitName, adFormat, value, currency);
 ```
 
+### Consent (Google Consent Mode)
+
+`Viva.Services.Analytics.Consent` holds an SDK-agnostic model of Google Consent Mode: `ConsentSignal` (the four signals), `TcfConsent` (the TCF purposes read from your CMP) and `ConsentModeMapper.Map`, which turns the TCF state into the four signals following Google's rules: outside the EEA everything is granted; inside, a missing purpose counts as denied. When your CMP finishes:
+
+```csharp
+var tcf = new TcfConsent(isGdpr, purpose1, purpose3, purpose4, purpose7, googleVendor);
+AnalyticsService.SetConsent(ConsentModeMapper.Map(tcf));
+```
+
+Every tracker receives the signals, also the ones added later. `FirebaseAnalyticsTracker` translates them to `FirebaseAnalytics.SetConsent` and, if Firebase is not ready yet, applies them as soon as it is, before any queued event or user property. Reading the TCF values from your CMP (for example `MaxSdkUtils.GetPurposeConsentStatus` with AppLovin MAX) stays in the game, as do the flags of SDKs the package does not know, such as Facebook's. The mapper has unit tests in `Packages/com.vivagames.analytics/Tests/Editor`.
+
 ### Several trackers
 
 `AnalyticsService.Initialize` accepts any number of trackers and every event is sent to all of them. New trackers (Singular, Facebook...) extend `AAnalyticsTracker`:
@@ -113,6 +124,7 @@ AdImpression.Track(adName, adPlatform, adSource, adUnitName, adFormat, value, cu
 ```csharp
 AnalyticsService.Initialize(new FirebaseAnalyticsTracker(), new ConsoleAnalyticsTracker());
 AnalyticsService.AddTracker(new MyOtherTracker()); // at any later time
+var firebase = AnalyticsService.GetTracker<FirebaseAnalyticsTracker>(); // to reach SDK-specific members
 ```
 
 ## Migrating from the .unitypackage version (1.x)
@@ -122,7 +134,7 @@ The namespace `Viva.Services.Analytics` and the `AAnalyticsTracker` API do not c
 1. Install the core package from its git URL (see [Installation](#installation)). It does not collide with the old code.
 2. Open **Viva > Package Installer** and press **Install** next to Viva Analytics. The installer detects the old installation, asks for confirmation, backs up `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` into `Library/VivaLegacyBackup` and removes them. `Events` and `Scripts` are kept. Unity shows compile errors for a moment until the package finishes importing.
 3. On its first run the package detects `Scripts/FirebaseAnalytics.cs` and `Scripts/AnalyticsInit.cs` and offers to migrate them: both are backed up as `.txt` in `Assets/VivaAnalytics/Legacy`, `AnalyticsInit.cs` moves to its new location keeping its GUID (scene references survive) and gets the new template, the common parameters registered in `InsertCommonParameters()` are moved into `RegisterCommonParameters()` of the new file, and the old scripts are deleted. You can answer **Later** and do it from **Viva > Analytics > Setup** whenever you want; the old scripts keep working until then.
-4. Review the migrated common parameters in `AnalyticsInit.cs`. The value expressions are copied as they were, without any condition that surrounded them, and the parameter keys are resolved from the constants of the old file.
+4. Review the migrated common parameters in `AnalyticsInit.cs`. When the old `InsertCommonParameters()` only had `parameters.Add(...)` lines, the value expressions are copied as they were and the keys are resolved from the constants of the old file. When it computed the values with its own logic (local variables, conditions), the original code and the new registrations are written as comments: move the logic inside each lambda and uncomment it, because until then those parameters are not sent.
 5. Any other line you had added to the old scripts (user properties, Crashlytics flags, custom logging...) is detected by comparing them with the original files of every 1.x release, and kept as comments in `OnFirebaseReady()` of the new `AnalyticsInit.cs`. Move each one where it belongs. The full list is in `Assets/VivaAnalytics/Legacy/MIGRATION_NOTES.txt`.
 
 If you installed Viva Analytics from its git URL directly instead of from the installer, the old code and the package define the same types and the project does not compile. Delete `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` by hand, or press **Remove legacy files** in the installer.

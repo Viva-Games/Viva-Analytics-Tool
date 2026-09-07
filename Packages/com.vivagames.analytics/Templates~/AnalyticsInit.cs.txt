@@ -29,6 +29,11 @@ namespace Viva.Services.Analytics
 #endif
 
             RegisterCommonParameters();
+
+            // Consent (Google Consent Mode): when your CMP finishes, map its TCF state and hand it to every tracker.
+            // Trackers apply it as soon as their SDK is ready, before any queued event. EXAMPLE:
+            // var tcf = new Consent.TcfConsent(isGdpr, purpose1, purpose3, purpose4, purpose7, googleVendor);
+            // AnalyticsService.SetConsent(Consent.ConsentModeMapper.Map(tcf));
         }
 
         /// <summary>

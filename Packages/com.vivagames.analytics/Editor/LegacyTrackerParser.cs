@@ -30,6 +30,16 @@ namespace Viva.Services.Analytics
 
             /// <summary>Nombres de las constantes que se han usado como clave y ya no hacen falta.</summary>
             public readonly List<string> ResolvedConstants = new List<string>();
+
+            /// <summary>Líneas de código del cuerpo de InsertCommonParameters, sin comentarios ni vacías.</summary>
+            public readonly List<string> BodyLines = new List<string>();
+
+            /// <summary>
+            /// true si el cuerpo solo tiene parameters.Add / stringParams.Add, y las expresiones se pueden trasladar
+            /// tal cual. false si calcula los valores con lógica propia (variables locales, condiciones...): entonces
+            /// las llamadas se generan comentadas, junto al código original, para reescribirlas a mano.
+            /// </summary>
+            public bool IsSimpleBody = true;
         }
 
         private static readonly Regex UsingRegex = new Regex(@"^\s*using\s+([\w\.]+)\s*;", RegexOptions.Multiline);
@@ -63,6 +73,18 @@ namespace Viva.Services.Analytics
 
             string body = ExtractMethodBody(code);
             if (body == null) return result;
+
+            foreach (var rawLine in body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0) continue;
+                result.BodyLines.Add(line);
+                if (!line.StartsWith("parameters.Add(", StringComparison.Ordinal)
+                    && !line.StartsWith("stringParams.Add(", StringComparison.Ordinal))
+                {
+                    result.IsSimpleBody = false;
+                }
+            }
 
             int index = 0;
             while (true)
@@ -111,7 +133,10 @@ namespace Viva.Services.Analytics
             return result;
         }
 
-        /// <summary>Una línea de código por parámetro, lista para RegisterCommonParameters().</summary>
+        /// <summary>
+        /// Una línea por parámetro, lista para RegisterCommonParameters(). Si el cuerpo antiguo tenía lógica propia
+        /// o la clave no se ha podido resolver, la línea va comentada con un TODO en vez de como código.
+        /// </summary>
         public static List<string> BuildRegistrationLines(Result result)
         {
             var lines = new List<string>();
@@ -121,6 +146,10 @@ namespace Viva.Services.Analytics
                 if (!parameter.KeyResolved)
                 {
                     line = "// TODO: the key could not be resolved to a string, fix it and uncomment: " + line;
+                }
+                else if (!result.IsSimpleBody)
+                {
+                    line = "// TODO: compute the value inside the lambda (see the original code above) and uncomment: " + line;
                 }
                 lines.Add(line);
             }

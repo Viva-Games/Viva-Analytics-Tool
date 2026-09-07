@@ -1,4 +1,7 @@
-﻿namespace Viva.Services.Analytics
+﻿using System.Collections.Generic;
+using Viva.Services.Analytics.Consent;
+
+namespace Viva.Services.Analytics
 {
     /// <summary>
     /// Class in charge of tracking analitycs events.
@@ -33,6 +36,14 @@
         /// Identificador del usuario. Por defecto no hace nada.
         /// </summary>
         public virtual void SetUserId(string userId)
+        {
+        }
+
+        /// <summary>
+        /// Señales de consentimiento (Google Consent Mode). Por defecto no hace nada; cada SDK las traduce
+        /// a lo suyo (Firebase a SetConsent, Facebook a sus flags de tracking...).
+        /// </summary>
+        public virtual void SetConsent(IReadOnlyDictionary<ConsentSignal, bool> signals)
         {
         }
     }

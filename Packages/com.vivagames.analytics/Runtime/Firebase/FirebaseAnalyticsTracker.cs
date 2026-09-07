@@ -4,6 +4,7 @@ using Firebase;
 using Firebase.Analytics;
 using Firebase.Extensions;
 using UnityEngine;
+using Viva.Services.Analytics.Consent;
 
 namespace Viva.Services.Analytics
 {
@@ -24,6 +25,7 @@ namespace Viva.Services.Analytics
         private readonly Dictionary<string, string> _pendingUserProperties = new Dictionary<string, string>();
         private string _pendingUserId;
         private bool _hasPendingUserId;
+        private Dictionary<ConsentType, ConsentStatus> _pendingConsent;
 
         /// <summary>
         /// Si es true, cada evento se escribe también en la consola de Unity.
@@ -124,6 +126,42 @@ namespace Viva.Services.Analytics
             }
         }
 
+        /// <summary>
+        /// Google Consent Mode. Se traduce a FirebaseAnalytics.SetConsent y, si Firebase aún no está listo,
+        /// se aplica en cuanto lo esté, antes que las propiedades de usuario y los eventos en cola.
+        /// </summary>
+        public override void SetConsent(IReadOnlyDictionary<ConsentSignal, bool> signals)
+        {
+            var consent = ToFirebaseConsent(signals);
+            if (_firebaseReady)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetConsent(consent);
+            }
+            else if (!_firebaseFailed)
+            {
+                _pendingConsent = consent;
+            }
+        }
+
+        private static Dictionary<ConsentType, ConsentStatus> ToFirebaseConsent(IReadOnlyDictionary<ConsentSignal, bool> signals)
+        {
+            var consent = new Dictionary<ConsentType, ConsentStatus>();
+            foreach (var pair in signals)
+            {
+                ConsentType type;
+                switch (pair.Key)
+                {
+                    case ConsentSignal.AnalyticsStorage: type = ConsentType.AnalyticsStorage; break;
+                    case ConsentSignal.AdStorage: type = ConsentType.AdStorage; break;
+                    case ConsentSignal.AdUserData: type = ConsentType.AdUserData; break;
+                    case ConsentSignal.AdPersonalization: type = ConsentType.AdPersonalization; break;
+                    default: continue;
+                }
+                consent[type] = pair.Value ? ConsentStatus.Granted : ConsentStatus.Denied;
+            }
+            return consent;
+        }
+
         private void FlushPending()
         {
             while (_pending.Count > 0)
@@ -133,9 +171,15 @@ namespace Viva.Services.Analytics
             }
         }
 
-        // Las propiedades de usuario van antes que los eventos en cola para que estos ya las lleven.
+        // Consentimiento y propiedades de usuario van antes que los eventos en cola para que estos ya los lleven.
         private void FlushPendingUserData()
         {
+            if (_pendingConsent != null)
+            {
+                global::Firebase.Analytics.FirebaseAnalytics.SetConsent(_pendingConsent);
+                _pendingConsent = null;
+            }
+
             foreach (var pair in _pendingUserProperties)
             {
                 global::Firebase.Analytics.FirebaseAnalytics.SetUserProperty(pair.Key, pair.Value);

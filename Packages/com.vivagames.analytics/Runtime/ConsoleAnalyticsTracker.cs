@@ -34,6 +34,19 @@ namespace Viva.Services.Analytics
             Debug.Log($"ANALYTICS USER ID: {userId}");
         }
 
+        public override void SetConsent(IReadOnlyDictionary<Consent.ConsentSignal, bool> signals)
+        {
+            var builder = new StringBuilder("ANALYTICS CONSENT: ");
+            bool first = true;
+            foreach (var pair in signals)
+            {
+                if (!first) builder.Append(", ");
+                first = false;
+                builder.Append(pair.Key).Append(" = ").Append(pair.Value ? "granted" : "denied");
+            }
+            Debug.Log(builder.ToString());
+        }
+
         /// <summary>
         /// Representación de un evento para la consola: ANALYTICS: event_key (param = value, ...).
         /// </summary>
