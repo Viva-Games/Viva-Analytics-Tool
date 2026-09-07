@@ -20,8 +20,17 @@ namespace Viva.Services.Analytics
 
         static FirebaseSdkDetector()
         {
-            // Se pospone para no tocar PlayerSettings en mitad de la carga del dominio.
-            EditorApplication.delayCall += () => Refresh();
+            if (Application.isBatchMode)
+            {
+                // En builds por línea de comandos (CI) delayCall puede no llegar a ejecutarse antes de la build:
+                // se sincroniza el define en el acto para que la plataforma que se compila lo tenga.
+                Refresh();
+            }
+            else
+            {
+                // En el editor se pospone para no tocar PlayerSettings en mitad de la carga del dominio.
+                EditorApplication.delayCall += () => Refresh();
+            }
         }
 
         /// <summary>true si Firebase.Analytics.dll está entre los assemblies precompilados del proyecto.</summary>
