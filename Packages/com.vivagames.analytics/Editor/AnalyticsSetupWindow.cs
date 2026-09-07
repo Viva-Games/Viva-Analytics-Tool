@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
@@ -18,6 +20,7 @@ namespace Viva.Services.Analytics
         private const string LEGACY_TRACKER_PATH = LEGACY_SCRIPTS_FOLDER + "/FirebaseAnalytics.cs";
         private const string LEGACY_INIT_PATH = LEGACY_SCRIPTS_FOLDER + "/AnalyticsInit.cs";
         private const string LEGACY_BACKUP_FOLDER = LEGACY_ROOT + "/Legacy";
+        private const string MIGRATION_NOTES_PATH = LEGACY_BACKUP_FOLDER + "/MIGRATION_NOTES.txt";
         private static readonly string[] LEGACY_CODE_FOLDERS = { LEGACY_ROOT + "/Runtime", LEGACY_ROOT + "/Editor" };
 
         // GUID que tenía AnalyticsInit.cs en el .unitypackage. Se reutiliza para que las escenas
@@ -295,6 +298,7 @@ namespace Viva.Services.Analytics
 
         /// <summary>
         /// Avisa de lo que va a hacer y, si el usuario acepta, migra los scripts de la versión .unitypackage.
+        /// Los parámetros comunes del FirebaseAnalytics.cs antiguo se trasladan al AnalyticsInit nuevo.
         /// Se usa desde el primer arranque del paquete y desde el botón de la ventana.
         /// </summary>
         private static void MigrateLegacyScripts()
@@ -305,8 +309,9 @@ namespace Viva.Services.Analytics
                 "Migrate will:\n" +
                 "1. Back up FirebaseAnalytics.cs and AnalyticsInit.cs as .txt files in " + LEGACY_BACKUP_FOLDER + ".\n" +
                 "2. Move AnalyticsInit.cs to " + AnalyticsEditorSettings.InitScriptPath + ", keeping its GUID so scene references survive, and replace its content with the new template.\n" +
-                "3. Delete the old scripts.\n\n" +
-                "Afterwards, copy your common parameters from the backup into RegisterCommonParameters().\n" +
+                "3. Move the common parameters from InsertCommonParameters() into RegisterCommonParameters() of the new AnalyticsInit.cs.\n" +
+                "4. Keep any other code you added to those scripts (user properties, Crashlytics...) as comments in OnFirebaseReady() of the new file, for you to review.\n" +
+                "5. Delete the old scripts.\n\n" +
                 "You can also do this later from Viva > Analytics > Setup.";
 
             if (!EditorUtility.DisplayDialog("Migrate legacy scripts", message, "Migrate now", "Later"))
@@ -315,22 +320,37 @@ namespace Viva.Services.Analytics
             }
 
             EnsureFolder(LEGACY_BACKUP_FOLDER);
+            var target = AnalyticsEditorSettings.InitScriptPath;
+
+            var migration = new MigrationData();
 
             if (File.Exists(LEGACY_TRACKER_PATH))
             {
+                var source = File.ReadAllText(LEGACY_TRACKER_PATH);
+                migration.Parameters = LegacyTrackerParser.Parse(source);
+
+                // Cualquier otra línea que el proyecto añadiera al tracker se conserva para revisarla.
+                var resolved = migration.Parameters.ResolvedConstants;
+                migration.AddCustomLines("FirebaseAnalytics.cs", LegacyCustomCodeFinder.FindCustomLines(
+                    source, AnalyticsPackage.ReadLegacyTemplates("FirebaseAnalytics"), line => IsMigratedTrackerLine(line, resolved)));
+
                 File.Copy(LEGACY_TRACKER_PATH, LEGACY_BACKUP_FOLDER + "/FirebaseAnalytics.legacy.txt", true);
                 DeleteAsset(LEGACY_TRACKER_PATH);
             }
 
             if (File.Exists(LEGACY_INIT_PATH))
             {
+                var source = File.ReadAllText(LEGACY_INIT_PATH);
+                migration.AddCustomLines("AnalyticsInit.cs", LegacyCustomCodeFinder.FindCustomLines(
+                    source, AnalyticsPackage.ReadLegacyTemplates("AnalyticsInit"), null));
+
                 File.Copy(LEGACY_INIT_PATH, LEGACY_BACKUP_FOLDER + "/AnalyticsInit.legacy.txt", true);
 
-                var target = AnalyticsEditorSettings.InitScriptPath;
                 if (File.Exists(target))
                 {
-                    // Ya hay un AnalyticsInit nuevo: el antiguo sobra.
+                    // Ya hay un AnalyticsInit nuevo: el antiguo sobra y lo rescatado se añade al existente.
                     DeleteAsset(LEGACY_INIT_PATH);
+                    InsertMigratedCode(target, migration);
                 }
                 else
                 {
@@ -346,9 +366,17 @@ namespace Viva.Services.Analytics
                             File.Move(LEGACY_INIT_PATH + ".meta", target + ".meta");
                     }
 
-                    WriteInitScript(target);
+                    WriteInitScript(target, migration);
                 }
             }
+            else if (migration.HasContent)
+            {
+                // Había tracker antiguo pero no AnalyticsInit antiguo: lo rescatado va al init que haya, o a uno nuevo.
+                if (File.Exists(target)) InsertMigratedCode(target, migration);
+                else WriteInitScript(target, migration);
+            }
+
+            WriteMigrationNotes(migration, target);
 
             if (Directory.Exists(LEGACY_SCRIPTS_FOLDER) && Directory.GetFileSystemEntries(LEGACY_SCRIPTS_FOLDER).Length == 0)
             {
@@ -358,10 +386,65 @@ namespace Viva.Services.Analytics
             AssetDatabase.Refresh();
             CompilationPipeline.RequestScriptCompilation();
 
-            EditorUtility.DisplayDialog("Migration done",
-                "Backups saved in " + LEGACY_BACKUP_FOLDER + ".\n\nNow copy your common parameters into RegisterCommonParameters() in " +
-                AnalyticsEditorSettings.InitScriptPath + " using AnalyticsService.RegisterCommonParameter.",
-                "OK");
+            var summary = new StringBuilder();
+            summary.Append(migration.ParameterCount > 0
+                ? migration.ParameterCount + " common parameter(s) were moved to RegisterCommonParameters() in " + target + ". Review them: the value expressions were copied as they were."
+                : "No common parameters were found in the old FirebaseAnalytics.cs.");
+
+            if (migration.CustomLines.Count > 0)
+            {
+                summary.Append("\n\n" + migration.CustomLines.Count + " line(s) of your own code were found in the old scripts (user properties, Crashlytics...). " +
+                               "They are kept as comments in OnFirebaseReady() of " + target + ": review them and put each one where it belongs.");
+            }
+
+            summary.Append("\n\nDetails in " + MIGRATION_NOTES_PATH + ". The backups of the old scripts are in the same folder.");
+
+            EditorUtility.DisplayDialog("Migration done", summary.ToString(), "OK");
+        }
+
+        /// <summary>Líneas del tracker antiguo que ya se han trasladado como parámetros comunes.</summary>
+        private static bool IsMigratedTrackerLine(string line, List<string> resolvedConstants)
+        {
+            if (line.Contains("new Parameter(") || line.Contains("stringParams.Add(")) return true;
+
+            var match = ConstLineRegex.Match(line);
+            return match.Success && resolvedConstants.Contains(match.Groups[1].Value);
+        }
+
+        private static void WriteMigrationNotes(MigrationData migration, string initPath)
+        {
+            var notes = new StringBuilder();
+            notes.AppendLine("Viva Analytics: migration from the .unitypackage version");
+            notes.AppendLine("Date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
+            notes.AppendLine("New initialization script: " + initPath);
+            notes.AppendLine();
+
+            notes.AppendLine("Common parameters moved to RegisterCommonParameters():");
+            if (migration.ParameterCount == 0)
+            {
+                notes.AppendLine("  (none)");
+            }
+            else
+            {
+                foreach (var line in LegacyTrackerParser.BuildRegistrationLines(migration.Parameters))
+                    notes.AppendLine("  " + line);
+            }
+            notes.AppendLine();
+
+            notes.AppendLine("Other code found in the old scripts (kept as comments in OnFirebaseReady(), review and relocate):");
+            if (migration.CustomLines.Count == 0)
+            {
+                notes.AppendLine("  (none)");
+            }
+            else
+            {
+                foreach (var line in migration.CustomLines)
+                    notes.AppendLine("  " + line);
+            }
+            notes.AppendLine();
+            notes.AppendLine("Backups: FirebaseAnalytics.legacy.txt and AnalyticsInit.legacy.txt in this folder.");
+
+            File.WriteAllText(MIGRATION_NOTES_PATH, notes.ToString());
         }
 
         #endregion
@@ -412,17 +495,45 @@ namespace Viva.Services.Analytics
             }
         }
 
+        private const string CODE_INDENT = "            ";
+        private static readonly Regex ConstLineRegex = new Regex(@"const\s+string\s+(\w+)\s*=");
+        private static readonly Regex CommonParametersMarker = new Regex(@"[ \t]*//\{\{COMMON_PARAMETERS\}\}[ \t]*\r?\n");
+        private static readonly Regex CustomCodeMarker = new Regex(@"[ \t]*//\{\{LEGACY_CUSTOM_CODE\}\}[ \t]*\r?\n");
+        private static readonly Regex RegisterCommonParametersMethod = new Regex(@"void\s+RegisterCommonParameters\s*\(\s*\)\s*\{[ \t]*\r?\n");
+        private static readonly Regex OnFirebaseReadyMethod = new Regex(@"void\s+OnFirebaseReady\s*\(\s*\)\s*\{[ \t]*\r?\n");
+
+        /// <summary>Lo que se rescata de los scripts antiguos durante la migración.</summary>
+        private sealed class MigrationData
+        {
+            /// <summary>Parámetros comunes del FirebaseAnalytics.cs antiguo (null si no existía).</summary>
+            public LegacyTrackerParser.Result Parameters;
+
+            /// <summary>Líneas de código propio del proyecto que no se pueden colocar solas, ya formateadas como comentario.</summary>
+            public readonly List<string> CustomLines = new List<string>();
+
+            public int ParameterCount => Parameters != null ? Parameters.Parameters.Count : 0;
+
+            public bool HasContent => ParameterCount > 0 || CustomLines.Count > 0;
+
+            public void AddCustomLines(string fileName, List<string> lines)
+            {
+                foreach (var line in lines)
+                    CustomLines.Add("// [" + fileName + "] " + line);
+            }
+        }
+
         /// <summary>
-        /// Escribe la plantilla de AnalyticsInit. Si ningún asset usa todavía el GUID antiguo, se lo asigna
-        /// al fichero nuevo para que las escenas del .unitypackage recuperen la referencia al componente.
+        /// Escribe la plantilla de AnalyticsInit con lo rescatado de la migración, si lo hay.
+        /// Si ningún asset usa todavía el GUID antiguo, se lo asigna al fichero nuevo para que las escenas
+        /// del .unitypackage recuperen la referencia al componente.
         /// </summary>
-        private static bool WriteInitScript(string path)
+        private static bool WriteInitScript(string path, MigrationData migration = null)
         {
             var template = AnalyticsPackage.ReadTemplate(AnalyticsPackage.InitTemplatePath);
             if (template == null) return false;
 
             EnsureFolder(Path.GetDirectoryName(path));
-            File.WriteAllText(path, template);
+            File.WriteAllText(path, ApplyMigration(template, migration));
 
             var metaPath = path + ".meta";
             if (!File.Exists(metaPath) && string.IsNullOrEmpty(AssetDatabase.GUIDToAssetPath(LEGACY_INIT_GUID)))
@@ -430,6 +541,98 @@ namespace Viva.Services.Analytics
                 File.WriteAllText(metaPath, BuildScriptMeta(LEGACY_INIT_GUID));
             }
             return true;
+        }
+
+        /// <summary>
+        /// Sustituye los marcadores de la plantilla ({{COMMON_PARAMETERS}} y {{LEGACY_CUSTOM_CODE}}) por los bloques
+        /// rescatados, o por nada, y añade los usings que necesitaba el tracker antiguo.
+        /// </summary>
+        private static string ApplyMigration(string template, MigrationData migration)
+        {
+            string newLine = template.Contains("\r\n") ? "\r\n" : "\n";
+            string parametersBlock = BuildParametersBlock(migration, newLine);
+            string customBlock = BuildCustomCodeBlock(migration, newLine);
+
+            // Con MatchEvaluator los bloques se insertan tal cual, sin interpretar $ como referencia de grupo.
+            var content = CommonParametersMarker.Replace(template, m => parametersBlock);
+            content = CustomCodeMarker.Replace(content, m => customBlock);
+
+            if (migration != null && migration.Parameters != null && migration.Parameters.Usings.Count > 0)
+            {
+                var usings = new StringBuilder();
+                foreach (var ns in migration.Parameters.Usings)
+                {
+                    if (!content.Contains("using " + ns + ";"))
+                        usings.Append("using ").Append(ns).Append(';').Append(newLine);
+                }
+
+                string extraUsings = usings.ToString();
+                content = Regex.Replace(content, @"using UnityEngine;\r?\n", m => m.Value + extraUsings);
+            }
+
+            return content;
+        }
+
+        private static string BuildParametersBlock(MigrationData migration, string newLine)
+        {
+            if (migration == null || migration.ParameterCount == 0) return string.Empty;
+
+            var block = new StringBuilder();
+            block.Append(CODE_INDENT).Append("// Common parameters migrated from the old FirebaseAnalytics.cs (backup in " + LEGACY_BACKUP_FOLDER + ").").Append(newLine);
+            block.Append(CODE_INDENT).Append("// Review them: value expressions were copied as they were, and any condition around them was not.").Append(newLine);
+            foreach (var line in LegacyTrackerParser.BuildRegistrationLines(migration.Parameters))
+            {
+                block.Append(CODE_INDENT).Append(line).Append(newLine);
+            }
+            block.Append(newLine);
+            return block.ToString();
+        }
+
+        private static string BuildCustomCodeBlock(MigrationData migration, string newLine)
+        {
+            if (migration == null || migration.CustomLines.Count == 0) return string.Empty;
+
+            var block = new StringBuilder();
+            block.Append(CODE_INDENT).Append("// Code you had added to the old AnalyticsInit.cs / FirebaseAnalytics.cs that the migration could not place by itself.").Append(newLine);
+            block.Append(CODE_INDENT).Append("// Review it and move each line where it belongs (backups in " + LEGACY_BACKUP_FOLDER + "):").Append(newLine);
+            foreach (var line in migration.CustomLines)
+            {
+                block.Append(CODE_INDENT).Append(line).Append(newLine);
+            }
+            block.Append(newLine);
+            return block.ToString();
+        }
+
+        /// <summary>
+        /// Inserta lo rescatado en un AnalyticsInit ya existente: los parámetros al principio de
+        /// RegisterCommonParameters() y el código propio al principio de OnFirebaseReady() si existe.
+        /// </summary>
+        private static void InsertMigratedCode(string path, MigrationData migration)
+        {
+            if (migration == null || !migration.HasContent || !File.Exists(path)) return;
+
+            var content = File.ReadAllText(path);
+            string newLine = content.Contains("\r\n") ? "\r\n" : "\n";
+            string parametersBlock = BuildParametersBlock(migration, newLine);
+            string customBlock = BuildCustomCodeBlock(migration, newLine);
+
+            if (customBlock.Length > 0 && OnFirebaseReadyMethod.IsMatch(content))
+            {
+                string customToInsert = customBlock;
+                content = OnFirebaseReadyMethod.Replace(content, m => m.Value + customToInsert, 1);
+                customBlock = string.Empty;
+            }
+
+            string remaining = parametersBlock + customBlock;
+            if (remaining.Length > 0)
+            {
+                if (RegisterCommonParametersMethod.IsMatch(content))
+                    content = RegisterCommonParametersMethod.Replace(content, m => m.Value + remaining, 1);
+                else
+                    Debug.LogWarning("[Analytics] RegisterCommonParameters() not found in " + path + ". Add these lines yourself:\n" + remaining);
+            }
+
+            File.WriteAllText(path, content);
         }
 
         private static string BuildScriptMeta(string guid)

@@ -15,7 +15,9 @@ All notable changes to the Viva Unity packages. Both packages share the same ver
 ### Added
 - `com.vivagames.core`: **Viva > Package Installer** window to install, update and remove modules from GitHub, with release tag detection through `git ls-remote`. When the core is installed from a branch, modules are installed from the same branch.
 - The installer migrates `.unitypackage` installations automatically: with confirmation, it backs up the old `Runtime` and `Editor` folders into `Library/VivaLegacyBackup` and removes them before installing the package.
-- On its first run Viva Analytics offers to migrate the legacy scripts or to run the initial setup.
+- On its first run Viva Analytics offers to migrate the legacy scripts or to run the initial setup. The migration moves the common parameters of the old `FirebaseAnalytics.cs` into the new `AnalyticsInit.cs`, keeps any other custom line of the old scripts as comments in `OnFirebaseReady()` and writes `Assets/VivaAnalytics/Legacy/MIGRATION_NOTES.txt`.
+- User properties and user id: `AnalyticsService.SetUserProperty` and `SetUserId`, forwarded to every tracker (virtual no-ops in `AAnalyticsTracker`, implemented by the Firebase and console trackers).
+- `FirebaseAnalyticsTracker.FirebaseReady` event, raised on the main thread once Firebase is ready. The generated `AnalyticsInit.cs` has an `OnFirebaseReady()` hook for Crashlytics, consent and similar.
 - `AnalyticsService` accepts several trackers at once; every event goes to all of them.
 - `ConsoleAnalyticsTracker`, used when no SDK is available.
 - `FirebaseAnalyticsTracker` waits for the Firebase dependency check and queues the events received before Firebase is ready.

@@ -18,7 +18,9 @@ namespace Viva.Services.Analytics
 
 #if VIVA_FIREBASE_ANALYTICS
             // Firebase is initialized by the tracker. Events tracked before Firebase is ready are queued and sent afterwards.
-            AnalyticsService.Initialize(new FirebaseAnalyticsTracker());
+            var firebase = new FirebaseAnalyticsTracker();
+            firebase.FirebaseReady += OnFirebaseReady;
+            AnalyticsService.Initialize(firebase);
 #else
             // The Firebase Analytics SDK is not in the project (VIVA_FIREBASE_ANALYTICS is not defined).
             // Events are only written to the console until the SDK is imported.
@@ -32,13 +34,30 @@ namespace Viva.Services.Analytics
         /// <summary>
         /// Common parameters are sent with every event. Each one is registered with a function that is
         /// evaluated every time an event is tracked, so point them to your live data (save file, player prefs...).
+        /// User properties and the user id are forwarded to every tracker (Firebase user properties included).
         /// </summary>
         private void RegisterCommonParameters()
         {
+//{{COMMON_PARAMETERS}}
             // EXAMPLES:
             // AnalyticsService.RegisterCommonParameter("player_level", () => PlayerPrefs.GetInt("level_game"));
             // AnalyticsService.RegisterCommonParameter("hours_played", () => SaveManager.Data.HoursPlayed);
             // AnalyticsService.SetCommonParameter("build_type", Debug.isDebugBuild ? "debug" : "release");
+            // AnalyticsService.SetUserProperty("player_segment", "whale");
+            // AnalyticsService.SetUserId(SaveManager.Data.PlayerId);
         }
+
+#if VIVA_FIREBASE_ANALYTICS
+        /// <summary>
+        /// Called on the main thread once Firebase has resolved its dependencies.
+        /// Put here what needs Firebase to be ready: Crashlytics flags, consent, other Firebase products...
+        /// </summary>
+        private void OnFirebaseReady()
+        {
+//{{LEGACY_CUSTOM_CODE}}
+            // EXAMPLES:
+            // Firebase.Crashlytics.Crashlytics.ReportUncaughtExceptionsAsFatal = true;
+        }
+#endif
     }
 }
