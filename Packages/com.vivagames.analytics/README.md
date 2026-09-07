@@ -27,12 +27,17 @@ To log an event, use `{NameOfEvent}.Track(...)` in the desired part of your code
 
 ### Common parameters
 
-Common parameters are sent with every event. Register them in `RegisterCommonParameters()` of `AnalyticsInit.cs` with a function, which is evaluated on every event, so they can point to your save data or player prefs:
+Common parameters are sent with every event. Register them in `RegisterCommonParameters()` of `AnalyticsInit.cs`. There are two ways, and the difference is when the value is read:
+
+- `RegisterCommonParameter(key, function)`: the function runs every time an event is tracked, so each event carries the current value. Use it for anything that changes during the session: level, hours played, currency.
+- `SetCommonParameter(key, value)`: the value is read once, when you call it, and every event carries that same value until you call it again. Use it for what is fixed for the whole session: build type, platform, app version.
 
 ```csharp
 AnalyticsService.RegisterCommonParameter("player_level", () => SaveManager.Data.Level);
 AnalyticsService.SetCommonParameter("build_type", Debug.isDebugBuild ? "debug" : "release");
 ```
+
+The usual mistake is passing a changing value to `SetCommonParameter`: every event would carry the value the player had at startup.
 
 ### User properties and consent
 

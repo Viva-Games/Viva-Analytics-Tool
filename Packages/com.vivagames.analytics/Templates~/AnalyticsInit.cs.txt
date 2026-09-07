@@ -37,17 +37,24 @@ namespace Viva.Services.Analytics
         }
 
         /// <summary>
-        /// Common parameters are sent with every event. Each one is registered with a function that is
-        /// evaluated every time an event is tracked, so point them to your live data (save file, player prefs...).
+        /// Common parameters are sent with every event. Two ways, the difference is when the value is read:
+        /// - RegisterCommonParameter(key, function): the function runs on every event, so each event carries the
+        ///   current value. For anything that changes during the session (level, hours played, currency...).
+        /// - SetCommonParameter(key, value): the value is read once, here, and every event carries that same value.
+        ///   For what is fixed for the whole session (build type, platform, app version...).
+        /// Passing a changing value to SetCommonParameter would send the value it had at startup in every event.
         /// User properties and the user id are forwarded to every tracker (Firebase user properties included).
         /// </summary>
         private void RegisterCommonParameters()
         {
 //{{COMMON_PARAMETERS}}
             // EXAMPLES:
+            // Changes during the session: RegisterCommonParameter with a lambda, evaluated on every event.
             // AnalyticsService.RegisterCommonParameter("player_level", () => PlayerPrefs.GetInt("level_game"));
             // AnalyticsService.RegisterCommonParameter("hours_played", () => SaveManager.Data.HoursPlayed);
+            // Fixed for the whole session: SetCommonParameter with the value, read once here.
             // AnalyticsService.SetCommonParameter("build_type", Debug.isDebugBuild ? "debug" : "release");
+            // User properties and user id, forwarded to every tracker.
             // AnalyticsService.SetUserProperty("player_segment", "whale");
             // AnalyticsService.SetUserId(SaveManager.Data.PlayerId);
         }
