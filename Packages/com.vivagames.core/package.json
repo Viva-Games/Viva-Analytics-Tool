@@ -1,0 +1,18 @@
+{
+  "name": "com.vivagames.core",
+  "version": "2.0.0",
+  "displayName": "Viva Core",
+  "description": "Base package of the Viva Games Unity tools. Contains the Viva Package Installer (menu Viva > Package Installer) used to install, update and remove the rest of the Viva modules from GitHub, plus shared editor utilities.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Viva Games",
+    "url": "https://github.com/Viva-Games"
+  },
+  "keywords": [
+    "viva",
+    "installer",
+    "core"
+  ],
+  "documentationUrl": "https://github.com/Viva-Games/Viva-Analytics-Tool#readme",
+  "changelogUrl": "https://github.com/Viva-Games/Viva-Analytics-Tool/blob/main/CHANGELOG.md"
+}

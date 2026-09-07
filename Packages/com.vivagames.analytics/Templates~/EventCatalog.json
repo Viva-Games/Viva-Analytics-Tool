@@ -1,0 +1,53 @@
+{
+  "events": [
+    {
+      "name": "ad_impression",
+      "description": "An ad was shown. Send the revenue data reported by the mediation SDK.",
+      "parameters": [
+        { "name": "ad_name", "type": "string" },
+        { "name": "ad_platform", "type": "string" },
+        { "name": "ad_source", "type": "string" },
+        { "name": "ad_unit_name", "type": "string" },
+        { "name": "ad_format", "type": "string" },
+        { "name": "value", "type": "double" },
+        { "name": "currency", "type": "string" }
+      ]
+    },
+    {
+      "name": "earn_virtual_currency",
+      "description": "The player earned virtual currency.",
+      "parameters": [
+        { "name": "virtual_currency_name", "type": "string" },
+        { "name": "value", "type": "int" },
+        { "name": "source_id", "type": "string" }
+      ]
+    },
+    {
+      "name": "fps_health_check",
+      "description": "Frame rate sample of a gameplay window.",
+      "parameters": [
+        { "name": "window_id", "type": "string" },
+        { "name": "fps_mean", "type": "int" },
+        { "name": "fps_min", "type": "int" },
+        { "name": "fps_max", "type": "int" }
+      ]
+    },
+    {
+      "name": "ftue_landmark",
+      "description": "The player reached a step of the tutorial (FTUE).",
+      "parameters": [
+        { "name": "ftue_step", "type": "int" },
+        { "name": "ftue_description", "type": "string" }
+      ]
+    },
+    {
+      "name": "spend_virtual_currency",
+      "description": "The player spent virtual currency.",
+      "parameters": [
+        { "name": "virtual_currency_name", "type": "string" },
+        { "name": "value", "type": "int" },
+        { "name": "item_name", "type": "string" }
+      ]
+    }
+  ]
+}

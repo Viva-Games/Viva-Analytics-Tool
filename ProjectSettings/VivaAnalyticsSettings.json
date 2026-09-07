@@ -1,0 +1,5 @@
+{
+    "eventsFolder": "Assets/VivaAnalytics/Events",
+    "initScriptPath": "Assets/VivaAnalytics/AnalyticsInit.cs",
+    "setupShown": true
+}
