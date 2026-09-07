@@ -1,169 +1,34 @@
 # Viva Unity Tools
 
-Unity packages shared across Viva Games projects. This repository is at the same time the Unity development project and the source of the packages, which live in [`Packages/`](Packages/):
+Unity packages shared by Viva Games projects, installed from this repository through the Unity Package Manager. The repository is also the Unity project used to develop them.
 
-| Package | Menu | What it does |
+| Module | Package | What it does |
 |---|---|---|
-| `com.vivagames.core` | Viva > Package Installer | Installs, updates and removes the other modules from GitHub. Required by every module. |
-| `com.vivagames.analytics` | Viva > Analytics | Analytics event creation tool and Firebase Analytics integration. |
+| [Viva Core](Packages/com.vivagames.core/README.md) | `com.vivagames.core` | Installer for the other modules. Required. |
+| [Viva Analytics](Packages/com.vivagames.analytics/README.md) | `com.vivagames.analytics` | Analytics event creation tool and Firebase Analytics integration. |
 
-The packages are integrators: they do not install third-party SDKs. Each project imports the SDKs it needs (for example the Firebase Analytics SDK) and the packages detect them.
-
-## Requirements
-
-- Unity 2021.3 or newer.
-- Git 2.14 or newer installed and available in the `PATH`. The Package Manager uses it to download packages from a URL.
-- For Viva Analytics: the [Firebase Analytics SDK for Unity](https://firebase.google.com/docs/analytics/unity/start) imported in the project. It can be imported before or after the package.
+The modules do not install third-party SDKs: each project imports the SDKs it needs (Firebase, AppLovin...) and the modules detect them. Each module README says which SDK it needs.
 
 ## Installation
 
-1. In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**. Paste:
+Requirements: Unity 2021.3 or newer, and git 2.14 or newer in the `PATH` (the Package Manager uses it).
+
+1. In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**:
 
    ```
    https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.0.0
    ```
 
-   Replace `core/v2.0.0` with the release you want. Each module is versioned on its own: its releases are the repository tags with its prefix, such as `core/v2.0.0` or `analytics/v2.0.1`.
-
-2. Open **Viva > Package Installer** and press **Install** next to each module you need. The window reads the release tags from GitHub and installs the latest release of each module.
-
-3. On its first run Viva Analytics offers to run the initial setup: it creates the events folder, imports the standard events and generates `AnalyticsInit.cs`. You can also run it later from **Viva > Analytics > Setup** with **Run full setup**.
-
-Every install or update writes to `Packages/manifest.json` and `Packages/packages-lock.json`. Commit both files so the whole team uses the same versions.
+2. Open **Viva > Package Installer** and press **Install** next to the modules you need. Each module README explains its setup.
+3. Commit `Packages/manifest.json` and `Packages/packages-lock.json`, so the whole team gets the same versions.
 
 ## Updating
 
-Open **Viva > Package Installer** and press **Check for updates**. Modules with a newer release show an **Update** button; **Update all** updates every outdated module to its own latest release, the core last. A module can be updated without touching the others.
+Open **Viva > Package Installer** and press **Check for updates**. Each module is versioned on its own: **Update** moves one module to its latest release and **Update all** moves every outdated one. Nothing updates by itself.
 
-Versions are pinned to a git tag. Nothing updates on its own, and the lock file stores the exact commit, so every team member gets the same version after pulling the project.
+## Releasing a module (maintainers)
 
-You can also update through the Package Manager: **Install package from git URL** with the same URL and a new tag replaces the installed version.
+1. Bump `version` in the module's `package.json` and add the entry to its `CHANGELOG.md`.
+2. Commit, tag with the module prefix (`analytics/v2.0.1`, `core/v2.1.0`) and push the tag.
 
-### Trying unreleased work
-
-Enable **Show development branches** in the installer. Each module then gets its own branch selector with three actions, independent of the other modules:
-
-- **Install from &lt;branch&gt;** for a module that is not installed yet.
-- **Switch to &lt;branch&gt;** to move an installed module to that branch.
-- **Pull latest &lt;branch&gt;** to move a module already on that branch to its newest commit. A module installed from a branch stays pinned to the commit it was installed at until you do this.
-
-So you can keep the core on `core/v2.0.0` and move only Analytics to `develop` to test what is new in that module. Once the work is released, the module shows **Switch to &lt;release tag&gt;**, which pins it back to a release. The tag and the branch commit it was cut from have the same content, so nothing needs to be rolled back. Only `Packages/manifest.json` and `packages-lock.json` change.
-
-Before the first release of a module there is no tag to install from, so this toggle is also the way to install it while it is still only on a branch.
-
-## Viva Analytics
-
-### Setup window (Viva > Analytics > Setup)
-
-Shows the state of the project and fixes whatever is missing:
-
-- **Events folder**: where the event classes are generated. Default `Assets/VivaAnalytics/Events`.
-- **AnalyticsInit.cs**: the initialization script of your project. Default `Assets/VivaAnalytics/AnalyticsInit.cs`.
-- **Firebase Analytics SDK**: detected automatically. When `Firebase.Analytics.dll` is in the project the package defines `VIVA_FIREBASE_ANALYTICS`, which enables the Firebase tracker.
-- **Standard events**: how many events of the studio catalog are in the project.
-
-Both paths can be changed in the window and are stored in `ProjectSettings/VivaAnalyticsSettings.json`.
-
-### Initialization
-
-`AnalyticsInit.cs` belongs to your project. The package never overwrites it during updates. Add the `AnalyticsInit` component to a GameObject in the first scene of the game. It initializes the service with the Firebase tracker (or with a console tracker when Firebase is not installed) and registers the common parameters.
-
-### Common parameters
-
-Common parameters travel with every event. They are registered with a function that is evaluated each time an event is tracked, so they can point to values that change during the game:
-
-```csharp
-private void RegisterCommonParameters()
-{
-    AnalyticsService.RegisterCommonParameter("player_level", () => SaveManager.Data.Level);
-    AnalyticsService.RegisterCommonParameter("hours_played", () => PlayerPrefs.GetFloat("hours_played"));
-    AnalyticsService.SetCommonParameter("build_type", Debug.isDebugBuild ? "debug" : "release");
-}
-```
-
-If an event defines a parameter with the same key, the value of the event wins.
-
-User properties and the user id go through the same service and reach every tracker, also the ones added later:
-
-```csharp
-AnalyticsService.SetUserProperty("player_segment", "whale");
-AnalyticsService.SetUserId(SaveManager.Data.PlayerId);
-```
-
-`FirebaseAnalyticsTracker` queues them until Firebase is ready and applies them before the queued events. Its `FirebaseReady` event fires on the main thread once Firebase has resolved its dependencies; the generated `AnalyticsInit.cs` subscribes `OnFirebaseReady()` to it, which is the place for Crashlytics flags, consent or other Firebase products.
-
-### Events (Viva > Analytics > Event Manager)
-
-- The window lists the events of the events folder. Each one can be edited or deleted.
-- **New Event** asks for a snake_case name, creates the class and opens the editor to add parameters. Supported types: `int`, `long`, `float`, `double`, `bool`, `string`.
-- **Standard events not in this project** lists the studio catalog events that are missing, with an **Add** button. Standard events already in the project are marked as `standard`; if their file differs from the catalog they show `(modified)` and a **Restore** button.
-- Deleting a standard event is safe: it stays available in the catalog.
-
-To log an event call its static method from your code:
-
-```csharp
-FtueLandmark.Track(1, "First step of the tutorial");
-AdImpression.Track(adName, adPlatform, adSource, adUnitName, adFormat, value, currency);
-```
-
-### Consent (Google Consent Mode)
-
-`Viva.Services.Analytics.Consent` holds an SDK-agnostic model of Google Consent Mode: `ConsentSignal` (the four signals), `TcfConsent` (the TCF purposes read from your CMP) and `ConsentModeMapper.Map`, which turns the TCF state into the four signals following Google's rules: outside the EEA everything is granted; inside, a missing purpose counts as denied. When your CMP finishes:
-
-```csharp
-var tcf = new TcfConsent(isGdpr, purpose1, purpose3, purpose4, purpose7, googleVendor);
-AnalyticsService.SetConsent(ConsentModeMapper.Map(tcf));
-```
-
-Every tracker receives the signals, also the ones added later. `FirebaseAnalyticsTracker` translates them to `FirebaseAnalytics.SetConsent` and, if Firebase is not ready yet, applies them as soon as it is, before any queued event or user property. Reading the TCF values from your CMP (for example `MaxSdkUtils.GetPurposeConsentStatus` with AppLovin MAX) stays in the game, as do the flags of SDKs the package does not know, such as Facebook's. The mapper has unit tests in `Packages/com.vivagames.analytics/Tests/Editor`.
-
-### Several trackers
-
-`AnalyticsService.Initialize` accepts any number of trackers and every event is sent to all of them. New trackers (Singular, Facebook...) extend `AAnalyticsTracker`:
-
-```csharp
-AnalyticsService.Initialize(new FirebaseAnalyticsTracker(), new ConsoleAnalyticsTracker());
-AnalyticsService.AddTracker(new MyOtherTracker()); // at any later time
-var firebase = AnalyticsService.GetTracker<FirebaseAnalyticsTracker>(); // to reach SDK-specific members
-```
-
-## Migrating from the .unitypackage version (1.x)
-
-The namespace `Viva.Services.Analytics` and the `AAnalyticsTracker` API do not change, so existing events and `.Track()` calls keep compiling. The migration is automatic:
-
-1. Install the core package from its git URL (see [Installation](#installation)). It does not collide with the old code.
-2. Open **Viva > Package Installer** and press **Install** next to Viva Analytics. The installer detects the old installation, asks for confirmation, backs up `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` into `Library/VivaLegacyBackup` and removes them. `Events` and `Scripts` are kept. Unity shows compile errors for a moment until the package finishes importing.
-3. On its first run the package detects `Scripts/FirebaseAnalytics.cs` and `Scripts/AnalyticsInit.cs` and offers to migrate them: both are backed up as `.txt` in `Assets/VivaAnalytics/Legacy`, `AnalyticsInit.cs` moves to its new location keeping its GUID (scene references survive) and gets the new template, the common parameters registered in `InsertCommonParameters()` are moved into `RegisterCommonParameters()` of the new file, and the old scripts are deleted. You can answer **Later** and do it from **Viva > Analytics > Setup** whenever you want; the old scripts keep working until then.
-4. Review the migrated common parameters in `AnalyticsInit.cs`. When the old `InsertCommonParameters()` only had `parameters.Add(...)` lines, the value expressions are copied as they were and the keys are resolved from the constants of the old file. When it computed the values with its own logic (local variables, conditions), the original code and the new registrations are written as comments: move the logic inside each lambda and uncomment it, because until then those parameters are not sent.
-5. Any other line you had added to the old scripts (user properties, Crashlytics flags, custom logging...) is detected by comparing them with the original files of every 1.x release, and kept as comments in `OnFirebaseReady()` of the new `AnalyticsInit.cs`. Move each one where it belongs. The full list is in `Assets/VivaAnalytics/Legacy/MIGRATION_NOTES.txt`.
-
-If you installed Viva Analytics from its git URL directly instead of from the installer, the old code and the package define the same types and the project does not compile. Delete `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` by hand, or press **Remove legacy files** in the installer.
-
-If a project has an assembly definition that references the old `VivaAnalytics` assembly by name, update the reference to `VivaGames.Analytics`. References by GUID keep working.
-
-## Development
-
-- Clone this repository and open it with Unity. The packages in `Packages/` are embedded, so they are editable and behave like the installed ones.
-- The Firebase SDK is not committed. Import it into the development project to compile and test the Firebase tracker.
-- Assets under `Packages/` need their `.meta` files committed. Unity generates them when the project is opened.
-
-### Releasing a version of a module
-
-Each package has its own version, changelog and tags, so a release touches only the module that changed:
-
-1. Bump `version` in the module's `package.json`, for example `Packages/com.vivagames.analytics/package.json`.
-2. Add the entry to the module's `CHANGELOG.md`, next to its `package.json`.
-3. Commit, create the tag with the module prefix and push it: `analytics/v2.0.1`, `core/v2.1.0`. The installer only considers tags with the `<prefix>/vX.Y.Z` format; the prefix of each module is declared in `VivaModuleCatalog`.
-
-Keep the editor utilities the modules take from the core (`ScriptingDefines`, `VivaPackageUtility`) backwards compatible, since a project may run any combination of module versions.
-
-### Adding a module
-
-1. Create `Packages/com.vivagames.<module>` with its `package.json`, assemblies and `.meta` files.
-2. Add one line to `VivaModuleCatalog.Modules` in the core package, with the tag prefix the module will use for its releases.
-3. If the module depends on a third-party SDK, compile its integration in a separate assembly with a define constraint, and enable the define from an editor script when the SDK is detected (see `FirebaseSdkDetector` in the analytics package).
-
-## Limitations worth knowing
-
-- The Package Manager cannot declare dependencies between packages installed from git. That is why the core has the installer window and each module is installed from it, at its own latest release.
-- The Package Manager does not check GitHub for new releases by itself; the installer window does it through `git ls-remote`.
+More in the [Viva Core README](Packages/com.vivagames.core/README.md#for-maintainers).
