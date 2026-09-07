@@ -8,22 +8,30 @@ using UnityEditor;
 
 namespace Viva.Core.Editor
 {
+    /// <summary>Tags y ramas publicados en el repositorio.</summary>
+    public sealed class GitRefs
+    {
+        public readonly List<string> Tags = new List<string>();
+        public readonly List<string> Branches = new List<string>();
+    }
+
     /// <summary>
-    /// Consulta los tags de un repositorio con "git ls-remote". Usa el mismo git que necesita el
-    /// Package Manager para instalar paquetes por URL, así que no depende de la API de GitHub ni de sus límites.
+    /// Consulta los tags y las ramas de un repositorio con "git ls-remote". Usa el mismo git que necesita
+    /// el Package Manager para instalar paquetes por URL, así que no depende de la API de GitHub ni de sus límites.
     /// </summary>
     public static class GitTagFetcher
     {
         private const int TIMEOUT_MS = 20000;
         private const string TAGS_PREFIX = "refs/tags/";
+        private const string HEADS_PREFIX = "refs/heads/";
 
         /// <summary>
         /// Lanza la consulta en un hilo aparte. El callback se ejecuta en el hilo principal del editor
-        /// con la lista de tags, o con un mensaje de error si algo ha fallado.
+        /// con los tags y ramas, o con un mensaje de error si algo ha fallado.
         /// </summary>
-        public static void FetchTags(string gitUrl, Action<List<string>, string> onCompleted)
+        public static void FetchRefs(string gitUrl, Action<GitRefs, string> onCompleted)
         {
-            List<string> tags = null;
+            GitRefs refs = null;
             string error = null;
             bool done = false;
 
@@ -31,7 +39,7 @@ namespace Viva.Core.Editor
             {
                 try
                 {
-                    tags = Run(gitUrl);
+                    refs = Run(gitUrl);
                 }
                 catch (Win32Exception)
                 {
@@ -52,15 +60,21 @@ namespace Viva.Core.Editor
             {
                 if (!done) return;
                 EditorApplication.update -= Poll;
-                onCompleted?.Invoke(tags, error);
+                onCompleted?.Invoke(refs, error);
             }
 
             EditorApplication.update += Poll;
         }
 
-        private static List<string> Run(string gitUrl)
+        /// <summary>Solo los tags. Mantiene la firma antigua.</summary>
+        public static void FetchTags(string gitUrl, Action<List<string>, string> onCompleted)
         {
-            var startInfo = new ProcessStartInfo("git", $"ls-remote --tags --refs \"{gitUrl}\"")
+            FetchRefs(gitUrl, (refs, error) => onCompleted?.Invoke(refs?.Tags, error));
+        }
+
+        private static GitRefs Run(string gitUrl)
+        {
+            var startInfo = new ProcessStartInfo("git", $"ls-remote --tags --heads --refs \"{gitUrl}\"")
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -97,15 +111,27 @@ namespace Viva.Core.Editor
                 }
             }
 
-            var tags = new List<string>();
+            var refs = new GitRefs();
             foreach (var line in stdout.ToString().Split('\n'))
             {
-                int index = line.IndexOf(TAGS_PREFIX, StringComparison.Ordinal);
-                if (index < 0) continue;
-                var tag = line.Substring(index + TAGS_PREFIX.Length).Trim();
-                if (tag.Length > 0) tags.Add(tag);
+                int tagIndex = line.IndexOf(TAGS_PREFIX, StringComparison.Ordinal);
+                if (tagIndex >= 0)
+                {
+                    var tag = line.Substring(tagIndex + TAGS_PREFIX.Length).Trim();
+                    if (tag.Length > 0) refs.Tags.Add(tag);
+                    continue;
+                }
+
+                int headIndex = line.IndexOf(HEADS_PREFIX, StringComparison.Ordinal);
+                if (headIndex >= 0)
+                {
+                    var branch = line.Substring(headIndex + HEADS_PREFIX.Length).Trim();
+                    if (branch.Length > 0) refs.Branches.Add(branch);
+                }
             }
-            return tags;
+
+            refs.Branches.Sort(StringComparer.OrdinalIgnoreCase);
+            return refs;
         }
     }
 }

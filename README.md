@@ -39,6 +39,18 @@ Versions are pinned to a git tag. Nothing updates on its own, and the lock file 
 
 You can also update through the Package Manager: **Install package from git URL** with the same URL and a new tag replaces the installed version.
 
+### Trying unreleased work
+
+Enable **Show development branches** in the installer. Each module then gets its own branch selector with three actions, independent of the other modules:
+
+- **Install from &lt;branch&gt;** for a module that is not installed yet.
+- **Switch to &lt;branch&gt;** to move an installed module to that branch.
+- **Pull latest &lt;branch&gt;** to move a module already on that branch to its newest commit. A module installed from a branch stays pinned to the commit it was installed at until you do this.
+
+So you can keep the core on `core/v2.0.0` and move only Analytics to `develop` to test what is new in that module. Once the work is released, the module shows **Switch to &lt;release tag&gt;**, which pins it back to a release. The tag and the branch commit it was cut from have the same content, so nothing needs to be rolled back. Only `Packages/manifest.json` and `packages-lock.json` change.
+
+Before the first release of a module there is no tag to install from, so this toggle is also the way to install it while it is still only on a branch.
+
 ## Viva Analytics
 
 ### Setup window (Viva > Analytics > Setup)
