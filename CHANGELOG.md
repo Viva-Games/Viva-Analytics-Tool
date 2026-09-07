@@ -13,7 +13,9 @@ All notable changes to the Viva Unity packages. Both packages share the same ver
 - Assembly `VivaAnalytics` is renamed to `VivaGames.Analytics` (same asmdef GUID, so GUID-based references keep working). The `Viva.Services.Analytics` namespace does not change.
 
 ### Added
-- `com.vivagames.core`: **Viva > Package Installer** window to install, update and remove modules from GitHub, with release tag detection through `git ls-remote`.
+- `com.vivagames.core`: **Viva > Package Installer** window to install, update and remove modules from GitHub, with release tag detection through `git ls-remote`. When the core is installed from a branch, modules are installed from the same branch.
+- The installer migrates `.unitypackage` installations automatically: with confirmation, it backs up the old `Runtime` and `Editor` folders into `Library/VivaLegacyBackup` and removes them before installing the package.
+- On its first run Viva Analytics offers to migrate the legacy scripts or to run the initial setup.
 - `AnalyticsService` accepts several trackers at once; every event goes to all of them.
 - `ConsoleAnalyticsTracker`, used when no SDK is available.
 - `FirebaseAnalyticsTracker` waits for the Firebase dependency check and queues the events received before Firebase is ready.

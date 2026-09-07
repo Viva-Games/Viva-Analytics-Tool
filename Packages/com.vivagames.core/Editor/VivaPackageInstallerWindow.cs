@@ -119,6 +119,8 @@ namespace Viva.Core.Editor
             bool busy = VivaPackageOperations.IsBusy || !_listLoaded;
             _installed.TryGetValue(module.PackageName, out var info);
 
+            DrawLegacyNotice(module, info, busy);
+
             EditorGUILayout.BeginHorizontal();
             if (info == null)
             {
@@ -129,7 +131,11 @@ namespace Viva.Core.Editor
                 using (new EditorGUI.DisabledScope(busy || tag == null))
                 {
                     if (GUILayout.Button(tag == null ? "Install" : $"Install {tag}", GUILayout.Width(140)))
-                        VivaPackageOperations.Install(module, tag);
+                    {
+                        // Si hay una instalación antigua por .unitypackage, avisa y la retira antes de instalar.
+                        if (LegacyInstallCleaner.PrepareForInstall(module))
+                            VivaPackageOperations.Install(module, tag);
+                    }
                 }
             }
             else
@@ -174,6 +180,37 @@ namespace Viva.Core.Editor
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Aviso de que quedan restos de la instalación antigua por .unitypackage. Al instalar se retiran
+        /// solos; si el módulo ya está instalado (por ejemplo desde una URL a mano), se ofrece retirarlos aquí.
+        /// </summary>
+        private static void DrawLegacyNotice(VivaModule module, PackageInfo info, bool busy)
+        {
+            var legacyFolders = LegacyInstallCleaner.FindLegacyFolders(module);
+            if (legacyFolders.Count == 0) return;
+
+            EditorGUILayout.HelpBox(
+                "Old .unitypackage installation found (" + string.Join(", ", legacyFolders) + "). " +
+                (info == null
+                    ? "It will be backed up and removed automatically when you install."
+                    : "It collides with the installed package and must be removed."),
+                MessageType.Warning);
+
+            if (info != null)
+            {
+                using (new EditorGUI.DisabledScope(busy))
+                {
+                    if (GUILayout.Button("Remove legacy files", GUILayout.Width(160)) &&
+                        EditorUtility.DisplayDialog("Remove legacy files",
+                            "Back up " + string.Join(" and ", legacyFolders) + " in Library/VivaLegacyBackup and remove them from the project?",
+                            "Remove", "Cancel"))
+                    {
+                        LegacyInstallCleaner.RemoveLegacyFolders(module, legacyFolders);
+                    }
+                }
+            }
         }
 
         private void DrawFooter()
@@ -237,18 +274,28 @@ namespace Viva.Core.Editor
         }
 
         /// <summary>
-        /// Tag a instalar: la última release conocida o, si no se ha podido consultar el repositorio,
-        /// la misma versión que tenga el core instalado.
+        /// Referencia git a instalar para un módulo nuevo:
+        /// 1. Si el core se instaló desde una rama o un commit (no desde un tag de versión), esa misma
+        ///    referencia, para que todos los módulos vayan a la par. Sirve para probar antes de publicar un tag.
+        /// 2. Si no, la última release conocida.
+        /// 3. Si no se ha podido consultar el repositorio, el tag de la misma versión que tenga el core.
         /// </summary>
         private string TargetTag()
         {
+            _installed.TryGetValue(VivaModuleCatalog.CorePackageName, out var core);
+
+            if (core != null && core.source == PackageSource.Git)
+            {
+                var revision = core.git != null ? core.git.revision : null;
+                if (!string.IsNullOrEmpty(revision) && !VivaVersion.TryParse(revision, out _))
+                    return revision;
+            }
+
             if (_latestVersion.HasValue) return _latestVersion.Value.ToTag();
 
-            if (_installed.TryGetValue(VivaModuleCatalog.CorePackageName, out var core)
-                && VivaVersion.TryParse(core.version, out var coreVersion))
-            {
+            if (core != null && VivaVersion.TryParse(core.version, out var coreVersion))
                 return coreVersion.ToTag();
-            }
+
             return null;
         }
 

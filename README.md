@@ -27,7 +27,7 @@ The packages are integrators: they do not install third-party SDKs. Each project
 
 2. Open **Viva > Package Installer** and press **Install** next to each module you need. The window reads the release tags from GitHub and installs every module at the same version as the core.
 
-3. For Viva Analytics, open **Viva > Analytics > Setup** and press **Run full setup**. It creates the events folder, imports the standard events and generates `AnalyticsInit.cs`.
+3. On its first run Viva Analytics offers to run the initial setup: it creates the events folder, imports the standard events and generates `AnalyticsInit.cs`. You can also run it later from **Viva > Analytics > Setup** with **Run full setup**.
 
 Every install or update writes to `Packages/manifest.json` and `Packages/packages-lock.json`. Commit both files so the whole team uses the same versions.
 
@@ -96,12 +96,14 @@ AnalyticsService.AddTracker(new MyOtherTracker()); // at any later time
 
 ## Migrating from the .unitypackage version (1.x)
 
-The namespace `Viva.Services.Analytics` and the `AAnalyticsTracker` API do not change, so existing events and `.Track()` calls keep compiling.
+The namespace `Viva.Services.Analytics` and the `AAnalyticsTracker` API do not change, so existing events and `.Track()` calls keep compiling. The migration is automatic:
 
-1. In `Assets/VivaAnalytics` delete the folders `Runtime` (with the `.asmdef` inside) and `Editor`. Keep `Events` and `Scripts`. Unity shows compile errors until the next step.
-2. Install the packages as described in [Installation](#installation).
-3. Open **Viva > Analytics > Setup**. Your `Scripts/FirebaseAnalytics.cs` and `Scripts/AnalyticsInit.cs` keep working with the new package, including your common parameters.
-4. When you want, press **Migrate legacy scripts**. It backs up both files as `.txt` in `Assets/VivaAnalytics/Legacy`, moves `AnalyticsInit.cs` to its new location keeping its GUID (scene references survive) and replaces its content with the new template. Then copy your common parameters into `RegisterCommonParameters()` using `AnalyticsService.RegisterCommonParameter`.
+1. Install the core package from its git URL (see [Installation](#installation)). It does not collide with the old code.
+2. Open **Viva > Package Installer** and press **Install** next to Viva Analytics. The installer detects the old installation, asks for confirmation, backs up `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` into `Library/VivaLegacyBackup` and removes them. `Events` and `Scripts` are kept. Unity shows compile errors for a moment until the package finishes importing.
+3. On its first run the package detects `Scripts/FirebaseAnalytics.cs` and `Scripts/AnalyticsInit.cs` and offers to migrate them: both are backed up as `.txt` in `Assets/VivaAnalytics/Legacy`, `AnalyticsInit.cs` moves to its new location keeping its GUID (scene references survive) and gets the new template, and the old scripts are deleted. You can answer **Later** and do it from **Viva > Analytics > Setup** whenever you want; the old scripts keep working until then.
+4. Copy your common parameters from the backup into `RegisterCommonParameters()` using `AnalyticsService.RegisterCommonParameter`.
+
+If you installed Viva Analytics from its git URL directly instead of from the installer, the old code and the package define the same types and the project does not compile. Delete `Assets/VivaAnalytics/Runtime` and `Assets/VivaAnalytics/Editor` by hand, or press **Remove legacy files** in the installer.
 
 If a project has an assembly definition that references the old `VivaAnalytics` assembly by name, update the reference to `VivaGames.Analytics`. References by GUID keep working.
 

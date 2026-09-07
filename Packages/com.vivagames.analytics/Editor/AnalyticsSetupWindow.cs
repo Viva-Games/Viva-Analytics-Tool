@@ -38,6 +38,10 @@ namespace Viva.Services.Analytics
             window.minSize = new Vector2(580, 440);
         }
 
+        /// <summary>
+        /// Primer arranque del paquete en un proyecto: si hay scripts de la versión .unitypackage ofrece
+        /// migrarlos; si el proyecto está vacío ofrece la configuración inicial. En ambos casos abre la ventana.
+        /// </summary>
         [InitializeOnLoadMethod]
         private static void OpenOnFirstRun()
         {
@@ -48,8 +52,31 @@ namespace Viva.Services.Analytics
             {
                 AnalyticsEditorSettings.Instance.setupShown = true;
                 AnalyticsEditorSettings.Instance.Save();
+
+                if (HasLegacyScripts())
+                    MigrateLegacyScripts();
+                else if (!File.Exists(AnalyticsEditorSettings.InitScriptPath) || AnalyticsEventCatalog.Missing().Count > 0)
+                    OfferInitialSetup();
+
                 Open();
             };
+        }
+
+        private static void OfferInitialSetup()
+        {
+            int missing = AnalyticsEventCatalog.Missing().Count;
+            bool needsInit = !File.Exists(AnalyticsEditorSettings.InitScriptPath);
+
+            var message = "Viva Analytics is installed. The initial setup will:\n\n";
+            message += "1. Create the events folder " + AnalyticsEditorSettings.EventsFolder + ".\n";
+            if (missing > 0)
+                message += $"2. Import the {missing} standard events of the studio catalog.\n";
+            if (needsInit)
+                message += (missing > 0 ? "3" : "2") + ". Generate " + AnalyticsEditorSettings.InitScriptPath + ", where you register your common parameters.\n";
+            message += "\nYou can also run it later from Viva > Analytics > Setup.";
+
+            if (EditorUtility.DisplayDialog("Set up Viva Analytics", message, "Run setup", "Later"))
+                RunFullSetup();
         }
 
         private void OnEnable()
@@ -266,12 +293,23 @@ namespace Viva.Services.Analytics
             return result;
         }
 
-        private void MigrateLegacyScripts()
+        /// <summary>
+        /// Avisa de lo que va a hacer y, si el usuario acepta, migra los scripts de la versión .unitypackage.
+        /// Se usa desde el primer arranque del paquete y desde el botón de la ventana.
+        /// </summary>
+        private static void MigrateLegacyScripts()
         {
-            if (!EditorUtility.DisplayDialog("Migrate legacy scripts",
-                    "Back up the legacy scripts in " + LEGACY_BACKUP_FOLDER + ", move AnalyticsInit.cs to " +
-                    AnalyticsEditorSettings.InitScriptPath + " with the new template and delete the old files?",
-                    "Migrate", "Cancel"))
+            var message =
+                "Scripts from the old .unitypackage version were found in " + LEGACY_SCRIPTS_FOLDER + ". " +
+                "They still work, but the new package handles initialization and common parameters differently.\n\n" +
+                "Migrate will:\n" +
+                "1. Back up FirebaseAnalytics.cs and AnalyticsInit.cs as .txt files in " + LEGACY_BACKUP_FOLDER + ".\n" +
+                "2. Move AnalyticsInit.cs to " + AnalyticsEditorSettings.InitScriptPath + ", keeping its GUID so scene references survive, and replace its content with the new template.\n" +
+                "3. Delete the old scripts.\n\n" +
+                "Afterwards, copy your common parameters from the backup into RegisterCommonParameters().\n" +
+                "You can also do this later from Viva > Analytics > Setup.";
+
+            if (!EditorUtility.DisplayDialog("Migrate legacy scripts", message, "Migrate now", "Later"))
             {
                 return;
             }
@@ -330,7 +368,7 @@ namespace Viva.Services.Analytics
 
         #region Actions
 
-        private void RunFullSetup()
+        private static void RunFullSetup()
         {
             EnsureFolder(AnalyticsEditorSettings.EventsFolder);
             int imported = AnalyticsEventCatalog.ImportMissing();
