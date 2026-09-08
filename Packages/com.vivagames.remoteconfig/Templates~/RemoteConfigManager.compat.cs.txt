@@ -1,0 +1,37 @@
+using System;
+using Viva.Services.RemoteConfig;
+
+namespace Viva.Services.Analytics
+{
+    /// <summary>
+    /// Compatibility wrapper written by Viva Remote Config over the old RemoteConfigManager of this project.
+    /// Same API as before, forwarding to RemoteConfigService, so the existing calls compile unchanged.
+    /// Migrate the call sites to RemoteConfigParameters (typed properties, no keys or defaults to retype)
+    /// at your own pace and delete this file when none is left. The original script is kept in {{BACKUP_PATH}}.
+    /// </summary>
+    public static class RemoteConfigManager
+    {
+        public static bool IsReady => RemoteConfigService.IsReady;
+
+        /// <summary>Fires once when the first fetch attempt ends, with or without success (see RemoteConfigService.Source).</summary>
+        public static event Action OnReady
+        {
+            add => RemoteConfigService.OnReady += value;
+            remove => RemoteConfigService.OnReady -= value;
+        }
+
+        /// <summary>
+        /// Kept for the existing call in AnalyticsInit.OnFirebaseReady(). The RemoteConfigInit component does the same
+        /// on its own; when you add it to the first scene, remove this call (a second Initialize is ignored with a warning).
+        /// </summary>
+        public static void Initialize() => RemoteConfigService.Initialize(RemoteConfigParameters.Defaults());
+
+        public static int GetInt(string key, int defaultValue = 0) => RemoteConfigService.GetInt(key, defaultValue);
+
+        public static string GetString(string key, string defaultValue = "") => RemoteConfigService.GetString(key, defaultValue);
+
+        public static bool GetBool(string key, bool defaultValue = false) => RemoteConfigService.GetBool(key, defaultValue);
+
+        public static T GetJson<T>(string key, T defaultValue = default) => RemoteConfigService.GetJson(key, defaultValue);
+    }
+}

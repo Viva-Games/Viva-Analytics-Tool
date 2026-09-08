@@ -1,0 +1,6 @@
+{
+    "parametersFilePath": "Assets/VivaRemoteConfig/RemoteConfigParameters.json",
+    "generatedScriptPath": "Assets/VivaRemoteConfig/RemoteConfigParameters.cs",
+    "initScriptPath": "Assets/VivaRemoteConfig/RemoteConfigInit.cs",
+    "setupShown": true
+}

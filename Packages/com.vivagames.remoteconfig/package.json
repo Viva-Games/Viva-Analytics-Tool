@@ -1,0 +1,18 @@
+{
+  "name": "com.vivagames.remoteconfig",
+  "version": "1.0.0",
+  "displayName": "Viva Remote Config",
+  "description": "Firebase Remote Config integration for Viva Games projects: declare the parameters and their defaults in an editor window, read them through a generated typed class. Requires com.vivagames.core 2.1.0 or newer (and Viva Analytics 2.1.0 or newer if installed): install through Viva > Package Installer.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Viva Games",
+    "url": "https://github.com/Viva-Games"
+  },
+  "keywords": [
+    "viva",
+    "remote config",
+    "firebase"
+  ],
+  "documentationUrl": "https://github.com/Viva-Games/Viva-Analytics-Tool/blob/main/Packages/com.vivagames.remoteconfig/README.md",
+  "changelogUrl": "https://github.com/Viva-Games/Viva-Analytics-Tool/blob/main/Packages/com.vivagames.remoteconfig/CHANGELOG.md"
+}

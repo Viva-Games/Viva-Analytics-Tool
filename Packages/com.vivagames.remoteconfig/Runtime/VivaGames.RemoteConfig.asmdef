@@ -1,0 +1,16 @@
+{
+    "name": "VivaGames.RemoteConfig",
+    "rootNamespace": "Viva.Services.RemoteConfig",
+    "references": [
+        "VivaGames.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

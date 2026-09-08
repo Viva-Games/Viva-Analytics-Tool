@@ -1,0 +1,21 @@
+{
+    "name": "VivaGames.RemoteConfig.Firebase",
+    "rootNamespace": "Viva.Services.RemoteConfig",
+    "references": [
+        "VivaGames.RemoteConfig",
+        "VivaGames.Core",
+        "VivaGames.Core.Firebase"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "VIVA_FIREBASE_REMOTE_CONFIG",
+        "VIVA_FIREBASE"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
