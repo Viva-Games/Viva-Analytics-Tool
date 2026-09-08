@@ -5,7 +5,7 @@ Unity packages shared by Viva Games projects, installed from this repository thr
 | Module | Package | What it does |
 |---|---|---|
 | [Viva Core](Packages/com.vivagames.core/README.md) | `com.vivagames.core` | Installer for the other modules. Required. |
-| [Viva Analytics](Packages/com.vivagames.analytics/README.md) | `com.vivagames.analytics` | Analytics event creation tool and Firebase Analytics integration. |
+| [Viva Analytics](Packages/com.vivagames.analytics/README.md) | `com.vivagames.analytics` | Analytics event creation tool with Firebase, Facebook and Singular trackers: every event goes to Firebase, the ones you tick also go to Facebook or Singular, and the ad revenue of Viva Ads is attributed in Singular. |
 | [Viva Remote Config](Packages/com.vivagames.remoteconfig/README.md) | `com.vivagames.remoteconfig` | Firebase Remote Config parameters declared in an editor window and read through a generated typed class. |
 | [Viva Ads](Packages/com.vivagames.ads/README.md) | `com.vivagames.ads` | AppLovin MAX integration: formats and placements declared in an editor window, one call to show each ad. |
 
