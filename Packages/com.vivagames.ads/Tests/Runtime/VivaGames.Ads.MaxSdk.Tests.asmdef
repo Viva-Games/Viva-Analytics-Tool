@@ -1,0 +1,27 @@
+{
+    "name": "VivaGames.Ads.MaxSdk.Tests",
+    "rootNamespace": "Viva.Services.Ads.Tests",
+    "references": [
+        "VivaGames.Ads",
+        "VivaGames.Ads.MaxSdk",
+        "VivaGames.Core",
+        "MaxSdk.Scripts",
+        "UnityEngine.UI",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "VIVA_APPLOVIN_MAX"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

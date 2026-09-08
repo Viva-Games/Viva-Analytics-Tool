@@ -1,0 +1,6 @@
+{
+    "adUnitsFilePath": "Assets/VivaAds/AdUnits.json",
+    "generatedScriptPath": "Assets/VivaAds/AdPlacements.cs",
+    "initScriptPath": "Assets/VivaAds/AdsInit.cs",
+    "setupShown": true
+}

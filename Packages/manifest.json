@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.applovin.mediation.ads": "8.6.2",
     "com.unity.collab-proxy": "2.11.3",
     "com.unity.feature.development": "1.0.2",
     "com.unity.multiplayer.center": "1.0.0",
@@ -38,5 +39,25 @@
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
     "com.unity.modules.xr": "1.0.0"
-  }
+  },
+  "scopedRegistries": [
+    {
+      "name": "AppLovin MAX Unity",
+      "url": "https://unity.packages.applovin.com",
+      "scopes": [
+        "com.applovin.mediation.ads",
+        "com.applovin.mediation.adapters",
+        "com.applovin.mediation.dsp"
+      ]
+    },
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.google.external-dependency-manager",
+        "com.google.play.core",
+        "com.google.play.common"
+      ]
+    }
+  ]
 }

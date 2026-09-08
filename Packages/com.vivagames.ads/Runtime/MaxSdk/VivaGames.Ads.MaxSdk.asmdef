@@ -1,0 +1,20 @@
+{
+    "name": "VivaGames.Ads.MaxSdk",
+    "rootNamespace": "Viva.Services.Ads",
+    "references": [
+        "VivaGames.Ads",
+        "VivaGames.Core",
+        "MaxSdk.Scripts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "VIVA_APPLOVIN_MAX"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

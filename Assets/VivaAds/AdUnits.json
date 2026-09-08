@@ -1,0 +1,23 @@
+{
+    "rewarded": {
+        "enabled": false,
+        "androidAdUnitId": "",
+        "iosAdUnitId": "",
+        "placements": []
+    },
+    "interstitial": {
+        "enabled": false,
+        "androidAdUnitId": "",
+        "iosAdUnitId": "",
+        "placements": []
+    },
+    "banner": {
+        "enabled": false,
+        "androidAdUnitId": "",
+        "iosAdUnitId": "",
+        "placements": [],
+        "position": "BottomCenter",
+        "adaptive": true,
+        "backgroundColor": "#000000"
+    }
+}

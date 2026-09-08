@@ -1,0 +1,20 @@
+{
+    "name": "VivaGames.Ads.Editor",
+    "rootNamespace": "Viva.Services.Ads.Editor",
+    "references": [
+        "VivaGames.Ads",
+        "VivaGames.Core",
+        "VivaGames.Core.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
