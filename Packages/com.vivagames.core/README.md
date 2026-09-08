@@ -7,7 +7,7 @@ Base package of the Viva Unity Tools. It contains the **Viva > Package Installer
 In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**:
 
 ```
-https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.2.0
+https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.3.0
 ```
 
 Git 2.14 or newer must be in the `PATH`.
@@ -53,6 +53,22 @@ VivaConsent.Subscribe(state => ApplyConsent(state));
 ```
 
 `ConsentState` carries the IAB TCF purposes 1, 3, 4 and 7 and the Google vendor (755) as nullable booleans (null means no TCF data, as for users outside the EEA) plus `IsGdpr`. Viva Ads publishes it after the AppLovin MAX consent flow; Viva Analytics 2.2.0 subscribes on its own and translates it to Google Consent Mode. A project without Viva Ads can publish from its own CMP and get the same result.
+
+## Shared ad revenue
+
+The module that shows the ads publishes every paid impression, and whoever attributes it subscribes. It is a stream, not a state: a subscriber only receives the impressions published after it subscribes.
+
+```csharp
+using Viva.Core;
+
+// Viva Ads 1.1.0 does this from the AppLovin MAX revenue callback:
+VivaAdRevenue.Publish(new AdRevenueEvent { Platform = "AppLovin", Format = "REWARDED", Placement = "level_end", AdUnitId = "...", NetworkName = "AdMob", Revenue = 0.0123, RevenuePrecision = "exact", Currency = "USD" });
+
+// Viva Analytics 2.3.0 does this from its Singular tracker:
+VivaAdRevenue.Subscribe(impression => SingularSDK.AdRevenue(ToSingular(impression)));
+```
+
+`AdRevenueEvent` carries platform, format, placement, ad unit, network, network placement, creative, revenue, precision and currency. A subscriber that throws is logged and does not stop the others.
 
 ## For maintainers
 

@@ -1,8 +1,8 @@
 {
   "name": "com.vivagames.core",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "displayName": "Viva Core",
-  "description": "Base package of the Viva Games Unity tools. Contains the Viva Package Installer (menu Viva > Package Installer) used to install, update and remove the rest of the Viva modules from GitHub, shared editor utilities, the Firebase initialization shared by the modules that use Firebase, and the consent bridge between modules.",
+  "description": "Base package of the Viva Games Unity tools. Contains the Viva Package Installer (menu Viva > Package Installer) used to install, update and remove the rest of the Viva modules from GitHub, shared editor utilities, the Firebase initialization shared by the modules that use Firebase, and the consent and ad revenue bridges between modules.",
   "unity": "2021.3",
   "author": {
     "name": "Viva Games",

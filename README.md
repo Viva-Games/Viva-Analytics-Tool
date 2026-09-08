@@ -18,7 +18,7 @@ Requirements: Unity 2021.3 or newer, and git 2.14 or newer in the `PATH` (the Pa
 1. In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**:
 
    ```
-   https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.2.0
+   https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.3.0
    ```
 
 2. Open **Viva > Package Installer** and press **Install** next to the modules you need. Each module README explains its setup.

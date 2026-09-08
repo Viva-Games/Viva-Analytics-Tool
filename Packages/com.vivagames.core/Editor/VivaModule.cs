@@ -99,7 +99,8 @@ namespace Viva.Core.Editor
                 {
                     // 2.1.0: el tracker de Firebase espera a VivaFirebase (core 2.1.0).
                     // 2.2.0: AnalyticsService se suscribe a VivaConsent (core 2.2.0).
-                    new VivaRequirement(CorePackageName, "2.2.0")
+                    // 2.3.0: el tracker de Singular se suscribe a VivaAdRevenue (core 2.3.0).
+                    new VivaRequirement(CorePackageName, "2.3.0")
                 }),
             new VivaModule("com.vivagames.remoteconfig", "Viva Remote Config",
                 "Firebase Remote Config integration: declare the parameters in an editor window, read them through a generated typed class.",
@@ -115,8 +116,9 @@ namespace Viva.Core.Editor
                 tagPrefix: "ads",
                 requiredModules: new[]
                 {
-                    // Usa ReadyGate y VivaConsent (core 2.2) y, si hay analíticas, estas reciben el consentimiento por el core (analytics 2.2).
-                    new VivaRequirement(CorePackageName, "2.2.0"),
+                    // Usa ReadyGate y VivaConsent (core 2.2) y publica los ingresos en VivaAdRevenue (core 2.3); si hay analíticas,
+                    // estas reciben el consentimiento por el core (analytics 2.2).
+                    new VivaRequirement(CorePackageName, "2.3.0"),
                     new VivaRequirement(AnalyticsPackageName, "2.2.0")
                 }),
             // Próximos módulos, una línea por cada uno.

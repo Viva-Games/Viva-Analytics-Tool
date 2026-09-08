@@ -2,6 +2,11 @@
 
 Releases of this package are the git tags `core/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.3.0] - 2026-09-08
+
+### Added
+- Ad revenue bridge between modules: `VivaAdRevenue` and `AdRevenueEvent` (assembly `VivaGames.Core`). The module that shows the ads publishes every paid impression with `VivaAdRevenue.Publish` (Viva Ads 1.1.0 does it from the AppLovin MAX revenue callback: platform, format, placement, ad unit, network, network placement, creative, revenue, precision and currency) and whoever attributes it subscribes with `VivaAdRevenue.Subscribe`. It is a stream, not a state: a subscriber only receives the impressions published after subscribing. Viva Analytics 2.3.0 uses it to attribute the ad revenue in Singular without project code. Unit tests included.
+
 ## [2.2.0] - 2026-09-08
 
 ### Added
