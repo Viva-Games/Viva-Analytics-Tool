@@ -97,8 +97,9 @@ namespace Viva.Core.Editor
                 },
                 requiredModules: new[]
                 {
-                    // Desde 2.1.0 el tracker de Firebase espera a VivaFirebase, que llegó con core 2.1.0.
-                    new VivaRequirement(CorePackageName, "2.1.0")
+                    // 2.1.0: el tracker de Firebase espera a VivaFirebase (core 2.1.0).
+                    // 2.2.0: AnalyticsService se suscribe a VivaConsent (core 2.2.0).
+                    new VivaRequirement(CorePackageName, "2.2.0")
                 }),
             new VivaModule("com.vivagames.remoteconfig", "Viva Remote Config",
                 "Firebase Remote Config integration: declare the parameters in an editor window, read them through a generated typed class.",
@@ -109,8 +110,16 @@ namespace Viva.Core.Editor
                     new VivaRequirement(CorePackageName, "2.1.0"),
                     new VivaRequirement(AnalyticsPackageName, "2.1.0")
                 }),
-            // Próximos módulos, una línea por cada uno:
-            // new VivaModule("com.vivagames.ads", "Viva Ads", "AdsManager built on AppLovin MAX.", tagPrefix: "ads"),
+            new VivaModule("com.vivagames.ads", "Viva Ads",
+                "AppLovin MAX integration: declare formats and placements in an editor window, call ShowRewarded, TryShowInterstitial or ShowBanner.",
+                tagPrefix: "ads",
+                requiredModules: new[]
+                {
+                    // Usa ReadyGate y VivaConsent (core 2.2) y, si hay analíticas, estas reciben el consentimiento por el core (analytics 2.2).
+                    new VivaRequirement(CorePackageName, "2.2.0"),
+                    new VivaRequirement(AnalyticsPackageName, "2.2.0")
+                }),
+            // Próximos módulos, una línea por cada uno.
         };
 
         public static VivaModule Find(string packageName)

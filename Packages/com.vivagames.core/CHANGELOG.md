@@ -2,6 +2,11 @@
 
 Releases of this package are the git tags `core/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.2.0] - 2026-09-08
+
+### Added
+- Consent bridge between modules: `VivaConsent` and `ConsentState` (assembly `VivaGames.Core`). The module that owns the CMP publishes the IAB TCF state with `VivaConsent.Set` (Viva Ads does it after the AppLovin MAX consent flow) and the modules that need it subscribe with `VivaConsent.Subscribe`, which delivers the current state at once and every later change. Viva Analytics 2.2.0 subscribes on its own, so with both modules installed Google Consent Mode is applied without any project code. Unit tests included.
+
 ## [2.1.0] - 2026-09-08
 
 ### Added

@@ -1,13 +1,13 @@
 # Viva Core
 
-Base package of the Viva Unity Tools. It contains the **Viva > Package Installer** window, the editor utilities the other modules share, and a small runtime shared by the modules that use Firebase: a single Firebase dependency check every module waits on. It needs no SDK.
+Base package of the Viva Unity Tools. It contains the **Viva > Package Installer** window, the editor utilities the other modules share, and a small runtime the modules cooperate through: a single Firebase dependency check every module waits on, and the consent bridge that carries the CMP result from Viva Ads to Viva Analytics. It needs no SDK.
 
 ## Installation
 
 In Unity open **Window > Package Manager**, press **+** and choose **Install package from git URL**:
 
 ```
-https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.1.0
+https://github.com/Viva-Games/Viva-Analytics-Tool.git?path=/Packages/com.vivagames.core#core/v2.2.0
 ```
 
 Git 2.14 or newer must be in the `PATH`.
@@ -38,10 +38,26 @@ VivaFirebase.WhenReady(OnFirebaseReady, OnFirebaseFailed); // main thread; runs 
 
 `ReadyGate` (assembly `VivaGames.Core`, no SDK needed) is the generic once-only gate behind `VivaFirebase`: `TryStart()` tells the first caller to do the initialization, `WhenReady()` queues or runs callbacks, `SetReady()` / `SetFailed()` release them. It can gate any other SDK the same way.
 
+## Shared consent
+
+Viva modules never reference each other, so the consent obtained by the module that owns the CMP reaches the others through the core:
+
+```csharp
+using Viva.Core;
+
+// The module (or your own CMP code) that knows the user's choice publishes it:
+VivaConsent.Set(new ConsentState { IsGdpr = true, Purpose1 = true, Purpose3 = false, Purpose4 = false, Purpose7 = true, GoogleVendor = true, Source = "My CMP" });
+
+// Whoever needs it subscribes; the callback runs at once if a state already exists, and again on every change:
+VivaConsent.Subscribe(state => ApplyConsent(state));
+```
+
+`ConsentState` carries the IAB TCF purposes 1, 3, 4 and 7 and the Google vendor (755) as nullable booleans (null means no TCF data, as for users outside the EEA) plus `IsGdpr`. Viva Ads publishes it after the AppLovin MAX consent flow; Viva Analytics 2.2.0 subscribes on its own and translates it to Google Consent Mode. A project without Viva Ads can publish from its own CMP and get the same result.
+
 ## For maintainers
 
 - Each module lives in `Packages/<name>` of the repository and has its own `version`, `CHANGELOG.md` and release tags `<prefix>/vX.Y.Z`. The prefix is declared in `VivaModuleCatalog`.
 - To release a module: bump its `version`, add the changelog entry, commit, tag (`analytics/v2.0.1`) and push the tag. The installer reads the tags with `git ls-remote`.
 - To add a module: create its folder in `Packages/` with `package.json`, assemblies and `.meta` files, and add one line to `VivaModuleCatalog.Modules`. If it depends on an SDK, compile the integration in an assembly with a define constraint and enable the define from an editor script when the SDK is detected (`SdkDetection.SyncDefine`; see `FirebaseAppDetector` here and `FirebaseSdkDetector` in Viva Analytics). If it uses Firebase, reference `VivaGames.Core.Firebase` and go through `VivaFirebase`.
 - If a module release needs a newer version of another module, declare it with `requiredModules` in its catalog line. The requirement only applies when that other module is installed.
-- The Package Manager cannot declare dependencies between packages installed from git; that is why the installer exists. Keep `ScriptingDefines`, `VivaPackageUtility`, `ReadyGate` and `VivaFirebase` backwards compatible, because a project may mix module versions.
+- The Package Manager cannot declare dependencies between packages installed from git; that is why the installer exists. Keep `ScriptingDefines`, `VivaPackageUtility`, `ReadyGate`, `VivaFirebase` and `VivaConsent` backwards compatible, because a project may mix module versions.
