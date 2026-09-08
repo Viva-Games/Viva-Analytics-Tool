@@ -2,6 +2,14 @@
 
 Releases of this package are the git tags `ads/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [1.1.0] - 2026-09-08
+
+### Added
+- Every impression with revenue is also published in `VivaAdRevenue` (Viva Core 2.3.0) as an `AdRevenueEvent`, so Viva Analytics 2.3.0 attributes it in Singular without project code. `AdsService.OnAdRevenue` and the `ad_impression` event of the generated `AdsInit.cs` behave as before.
+
+### Changed
+- Requires Viva Core 2.3.0 or newer. The `AdsInit.cs` template no longer shows a Singular example in the revenue hook: the attribution is automatic when Viva Analytics has the Singular tracker.
+
 ## [1.0.0] - 2026-09-08
 
 ### Added

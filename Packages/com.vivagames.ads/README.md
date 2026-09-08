@@ -14,7 +14,7 @@ Initialization, the consent flow, loading and reloading, retries, what happens w
 
 1. Install the [AppLovin MAX Unity plugin](https://support.applovin.com/en/max/unity/overview/integration/), either through the Package Manager registry (`com.applovin.mediation.ads`) or the `.unitypackage`. Both work: the module detects the `MaxSdk.Scripts` assembly and enables the `VIVA_APPLOVIN_MAX` define by itself. Until the plugin is there, the game compiles and every ad call reports `NotInitialized`.
 2. In **AppLovin > Integration Manager** enter your SDK key, install the mediation adapters you use and enable the **MAX Terms and Privacy Policy Flow** with your privacy policy URL. That flow is the CMP (Google UMP in GDPR regions, ATT on iOS). Setup checks these three points and says what is missing.
-3. Install [Viva Core](../com.vivagames.core/README.md) 2.2.0 or newer and, in **Viva > Package Installer**, press **Install** next to Viva Ads. If Viva Analytics is installed it must be 2.2.0 or newer; the installer says so.
+3. Install [Viva Core](../com.vivagames.core/README.md) 2.3.0 or newer and, in **Viva > Package Installer**, press **Install** next to Viva Ads. If Viva Analytics is installed it must be 2.2.0 or newer; the installer says so.
 4. On its first run the package offers the initial setup: it creates `Assets/VivaAds/AdUnits.json`, generates `AdPlacements.cs` and `AdsInit.cs`. You can run it later from **Viva > Ads > Setup**.
 5. Add the `AdsInit` component to a GameObject in the first scene. The order with `AnalyticsInit` does not matter.
 
@@ -162,7 +162,7 @@ The MAX consent flow runs inside the SDK initialization. When it ends, the modul
 
 ### Ad revenue
 
-Every impression with revenue raises `AdsService.OnAdRevenue(AdRevenueInfo)`: format, placement, ad unit, network, creative, revenue, precision and currency. With Viva Analytics installed and the standard `ad_impression` event imported, the generated `AdsInit.cs` already tracks it; the template also shows the Singular call.
+Every impression with revenue raises `AdsService.OnAdRevenue(AdRevenueInfo)`: format, placement, ad unit, network, creative, revenue, precision and currency. The same impression is published in `VivaAdRevenue` (Viva Core 2.3.0), so Viva Analytics 2.3.0 attributes it in Singular on its own (toggle **Attribute the ad revenue of Viva Ads in Singular** in Viva > Analytics > Setup, on by default), no code needed. With Viva Analytics installed and the standard `ad_impression` event imported, the generated `AdsInit.cs` already tracks it.
 
 ### Without the plugin
 
@@ -192,6 +192,6 @@ If the `MaxSdk.Scripts` assembly is not in the project, `Initialize` uses a prov
 
 ### Requirements
 
-- Viva Core 2.2.0 or newer (`ReadyGate`, `VivaConsent`).
+- Viva Core 2.3.0 or newer (`ReadyGate`, `VivaConsent`, `VivaAdRevenue`).
 - Viva Analytics 2.2.0 or newer if it is installed (it receives the consent through the core).
 - AppLovin MAX Unity plugin 8.x (the `MaxSdk.Scripts` assembly; older plugins without it cannot be referenced). Unity 2021.3 or newer.

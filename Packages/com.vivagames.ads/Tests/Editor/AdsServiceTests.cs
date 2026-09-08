@@ -743,10 +743,20 @@ namespace Viva.Services.Ads.Tests
             AdsService.OnAdRevenue += r => received = r;
             InitializeReady();
 
-            _provider.Revenue(new AdRevenueInfo { Format = AdFormat.Rewarded, Placement = "hint", Revenue = 0.01, NetworkName = "AdMob" });
+            AdRevenueEvent shared = null;
+            VivaAdRevenue.Reset();
+            VivaAdRevenue.Subscribe(r => shared = r);
+
+            _provider.Revenue(new AdRevenueInfo { Format = AdFormat.Rewarded, FormatName = "REWARDED", Placement = "hint", Revenue = 0.01, NetworkName = "AdMob", RevenuePrecision = "exact" });
 
             Assert.IsNotNull(received);
             Assert.AreEqual("hint", received.Placement);
+            Assert.IsNotNull(shared, "also published through Viva Core for the modules that attribute revenue");
+            Assert.AreEqual("REWARDED", shared.Format);
+            Assert.AreEqual("AdMob", shared.NetworkName);
+            Assert.AreEqual(0.01, shared.Revenue);
+            Assert.AreEqual("USD", shared.Currency);
+            VivaAdRevenue.Reset();
         }
 
         [Test]

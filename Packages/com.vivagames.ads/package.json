@@ -1,8 +1,8 @@
 {
   "name": "com.vivagames.ads",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "Viva Ads",
-  "description": "AppLovin MAX integration for Viva Games projects: declare the ad formats and placements in an editor window, then call ShowRewarded, TryShowInterstitial or ShowBanner. Initialization, consent, loading, retries and the protection of the game while an ad is showing are handled by the module. Requires com.vivagames.core 2.2.0 or newer (and Viva Analytics 2.2.0 or newer if installed): install through Viva > Package Installer.",
+  "description": "AppLovin MAX integration for Viva Games projects: declare the ad formats and placements in an editor window, then call ShowRewarded, TryShowInterstitial or ShowBanner. Initialization, consent, loading, retries and the protection of the game while an ad is showing are handled by the module. Requires com.vivagames.core 2.3.0 or newer (and Viva Analytics 2.2.0 or newer if installed): install through Viva > Package Installer.",
   "unity": "2021.3",
   "author": {
     "name": "Viva Games",

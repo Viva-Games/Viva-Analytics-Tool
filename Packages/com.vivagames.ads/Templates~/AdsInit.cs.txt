@@ -33,12 +33,11 @@ public class AdsInit : MonoBehaviour
             // FB.Mobile.SetAdvertiserTrackingEnabled(adStorage); FB.Mobile.SetAdvertiserIDCollectionEnabled(adStorage);
         };
 
+        // Ad revenue: with Viva Analytics and the Singular SDK installed, the attribution in Singular is automatic
+        // (SingularAnalyticsTracker.AttributeAdRevenue). This hook is for anything else.
         AdsService.OnAdRevenue += ad =>
         {
 //{{REVENUE_HOOK}}
-            // Other MMPs, for example Singular:
-            // SingularSDK.AdRevenue(new SingularAdData("AppLovin", ad.Currency, ad.Revenue).WithAdType(ad.FormatName)
-            //     .WithAdUnitId(ad.AdUnitId).WithNetworkName(ad.NetworkName).WithAdPlacmentName(ad.Placement).WithPrecision(ad.RevenuePrecision));
         };
 
         AdsService.WhenInitialized(() =>

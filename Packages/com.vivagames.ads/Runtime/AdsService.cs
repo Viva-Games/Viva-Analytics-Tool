@@ -659,6 +659,21 @@ namespace Viva.Services.Ads
                 if (revenue == null) return;
                 // Cualificado: dentro de Listener, "OnAdRevenue" a secas es este método, no el evento del servicio.
                 Raise(AdsService.OnAdRevenue, revenue, nameof(AdsService.OnAdRevenue));
+
+                // Y por el core, para los módulos que atribuyen ingresos sin conocer este (el tracker de Singular de Viva Analytics).
+                VivaAdRevenue.Publish(new AdRevenueEvent
+                {
+                    Platform = "AppLovin",
+                    Format = revenue.FormatName ?? revenue.Format.ToString(),
+                    Placement = revenue.Placement,
+                    AdUnitId = revenue.AdUnitId,
+                    NetworkName = revenue.NetworkName,
+                    NetworkPlacement = revenue.NetworkPlacement,
+                    CreativeId = revenue.CreativeId,
+                    Revenue = revenue.Revenue,
+                    RevenuePrecision = revenue.RevenuePrecision,
+                    Currency = revenue.Currency ?? "USD"
+                });
             }
 
             public void OnConsentChanged(AdsConsentInfo consent)
