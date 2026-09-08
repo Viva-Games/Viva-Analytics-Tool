@@ -859,9 +859,9 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   scriptingDefineSymbols:
-    Android: VIVA_FIREBASE_ANALYTICS
-    Standalone: VIVA_FIREBASE_ANALYTICS
-    iPhone: VIVA_FIREBASE_ANALYTICS
+    Android: VIVA_FIREBASE_ANALYTICS;VIVA_FIREBASE
+    Standalone: VIVA_FIREBASE_ANALYTICS;VIVA_FIREBASE
+    iPhone: VIVA_FIREBASE_ANALYTICS;VIVA_FIREBASE
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

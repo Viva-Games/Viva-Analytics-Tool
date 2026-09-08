@@ -2,6 +2,14 @@
 
 Releases of this package are the git tags `core/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.1.0] - 2026-09-08
+
+### Added
+- Shared Firebase initialization: `VivaFirebase` (assembly `VivaGames.Core.Firebase`, compiled only with the `VIVA_FIREBASE` define) runs `FirebaseApp.CheckAndFixDependenciesAsync` once for every Viva module. Modules call `VivaFirebase.EnsureInitialized()` and `VivaFirebase.WhenReady(onReady, onFailed)` instead of checking on their own, because the Firebase Unity SDK does not support two concurrent dependency checks. Any number of modules can initialize in any order and the check still runs exactly once.
+- `ReadyGate` (assembly `VivaGames.Core`, no SDK needed): the generic once-only initialization gate behind `VivaFirebase`, with unit tests in `Tests/Editor`.
+- `FirebaseAppDetector` keeps the `VIVA_FIREBASE` define in sync with the presence of `Firebase.App.dll`, and `SdkDetection` offers the same detection to the modules.
+- Module requirements (`VivaModule.RequiredModules`): a module can need a minimum version of another module. While an installed module is older than required, the installer disables **Install** and **Update** for the module that needs it and says which one to update first. Viva Analytics 2.1.0 requires Viva Core 2.1.0.
+
 ## [2.0.0] - 2026-09-07
 
 ### Added

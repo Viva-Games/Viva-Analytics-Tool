@@ -175,17 +175,25 @@ namespace Viva.Core.Editor
             _installed.TryGetValue(module.PackageName, out var info);
             string latestTag = LatestTag(module);
 
+            // Requisitos sobre otros módulos instalados: mientras no se cumplan, este no se instala ni se actualiza.
+            var unmet = UnmetRequirements(module);
+            bool blocked = unmet.Count > 0;
+
             DrawLegacyNotice(module, info, busy);
-            DrawReleaseRow(module, info, latestTag, busy);
+            DrawRequirementsNotice(unmet);
+            DrawReleaseRow(module, info, latestTag, busy, blocked);
 
             if (_showBranches && (info == null || info.source != PackageSource.Embedded))
-                DrawBranchRow(module, info, busy);
+                DrawBranchRow(module, info, busy || blocked);
 
             EditorGUILayout.EndVertical();
         }
 
-        /// <summary>Estado del módulo y acciones sobre releases: instalar, actualizar, anclar a release, quitar.</summary>
-        private void DrawReleaseRow(VivaModule module, PackageInfo info, string latestTag, bool busy)
+        /// <summary>
+        /// Estado del módulo y acciones sobre releases: instalar, actualizar, anclar a release, quitar.
+        /// blocked deshabilita instalar y actualizar (requisitos sin cumplir), nunca quitar.
+        /// </summary>
+        private void DrawReleaseRow(VivaModule module, PackageInfo info, string latestTag, bool busy, bool blocked)
         {
             EditorGUILayout.BeginHorizontal();
             if (info == null)
@@ -196,7 +204,7 @@ namespace Viva.Core.Editor
                     EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
 
-                using (new EditorGUI.DisabledScope(busy || latestTag == null))
+                using (new EditorGUI.DisabledScope(busy || blocked || latestTag == null))
                 {
                     if (GUILayout.Button(latestTag == null ? "Install" : $"Install {latestTag}", GUILayout.Width(190)))
                         InstallModule(module, latestTag);
@@ -215,7 +223,7 @@ namespace Viva.Core.Editor
                 {
                     if (IsOutdated(module, info))
                     {
-                        using (new EditorGUI.DisabledScope(busy))
+                        using (new EditorGUI.DisabledScope(busy || blocked))
                         {
                             if (GUILayout.Button($"Update to {latestTag}", GUILayout.Width(190)))
                                 VivaPackageOperations.Install(module, latestTag);
@@ -224,7 +232,7 @@ namespace Viva.Core.Editor
                     else if (latestTag != null && IsInstalledFromBranch(info))
                     {
                         // Instalado desde una rama: se ofrece anclarlo a la release publicada.
-                        using (new EditorGUI.DisabledScope(busy))
+                        using (new EditorGUI.DisabledScope(busy || blocked))
                         {
                             if (GUILayout.Button($"Switch to {latestTag}", GUILayout.Width(190)))
                                 VivaPackageOperations.Install(module, latestTag);
@@ -330,6 +338,13 @@ namespace Viva.Core.Editor
             }
         }
 
+        /// <summary>Aviso de que otro módulo instalado es más antiguo de lo que este necesita.</summary>
+        private static void DrawRequirementsNotice(List<string> unmet)
+        {
+            if (unmet.Count == 0) return;
+            EditorGUILayout.HelpBox(string.Join("\n", unmet), MessageType.Warning);
+        }
+
         /// <summary>Instalación nueva: retira antes la instalación antigua por .unitypackage si la hay.</summary>
         private static void InstallModule(VivaModule module, string reference)
         {
@@ -380,6 +395,28 @@ namespace Viva.Core.Editor
             if (info.source != PackageSource.Git || info.git == null) return false;
             var revision = info.git.revision;
             return !string.IsNullOrEmpty(revision) && !VivaRepository.TryParseTag(revision, out _, out _);
+        }
+
+        /// <summary>
+        /// Requisitos del módulo que no se cumplen: otros módulos instalados en una versión más antigua
+        /// de la que necesita. Un módulo que no está instalado no cuenta.
+        /// </summary>
+        private List<string> UnmetRequirements(VivaModule module)
+        {
+            var result = new List<string>();
+            if (!_listLoaded) return result;
+
+            foreach (var requirement in module.RequiredModules)
+            {
+                if (!_installed.TryGetValue(requirement.PackageName, out var info)) continue;
+                if (!VivaVersion.TryParse(info.version, out var installed)) continue;
+                if (installed >= requirement.MinimumVersion) continue;
+
+                var required = VivaModuleCatalog.Find(requirement.PackageName);
+                string name = required != null ? required.DisplayName : requirement.PackageName;
+                result.Add($"{module.DisplayName} needs {name} {requirement.MinimumVersion} or newer (installed: {installed}). Update {name} first.");
+            }
+            return result;
         }
 
         private List<VivaModule> OutdatedModules()

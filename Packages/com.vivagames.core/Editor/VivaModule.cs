@@ -1,5 +1,25 @@
+using System;
+
 namespace Viva.Core.Editor
 {
+    /// <summary>
+    /// Versión mínima de otro módulo que un módulo necesita para funcionar. Solo se comprueba
+    /// si ese otro módulo está instalado: los módulos son independientes entre sí.
+    /// </summary>
+    public sealed class VivaRequirement
+    {
+        public string PackageName { get; }
+        public VivaVersion MinimumVersion { get; }
+
+        public VivaRequirement(string packageName, string minimumVersion)
+        {
+            if (!VivaVersion.TryParse(minimumVersion, out var version))
+                throw new ArgumentException($"Invalid minimum version '{minimumVersion}' for {packageName}.");
+            PackageName = packageName;
+            MinimumVersion = version;
+        }
+    }
+
     /// <summary>
     /// Un módulo instalable desde el Viva Package Installer.
     /// </summary>
@@ -29,11 +49,18 @@ namespace Viva.Core.Editor
         /// </summary>
         public string[] LegacyFolders { get; }
 
+        /// <summary>
+        /// Versiones mínimas de otros módulos que la última release de este necesita. El instalador no
+        /// instala ni actualiza el módulo mientras alguno de esos módulos esté instalado en una versión
+        /// más antigua, y dice cuál hay que actualizar antes.
+        /// </summary>
+        public VivaRequirement[] RequiredModules { get; }
+
         /// <summary>Carpeta del paquete dentro de Packages/ en el repositorio. Coincide con el nombre del paquete.</summary>
         public string FolderName => PackageName;
 
         public VivaModule(string packageName, string displayName, string description, string tagPrefix,
-            bool isCore = false, string[] legacyFolders = null)
+            bool isCore = false, string[] legacyFolders = null, VivaRequirement[] requiredModules = null)
         {
             PackageName = packageName;
             DisplayName = displayName;
@@ -41,6 +68,7 @@ namespace Viva.Core.Editor
             TagPrefix = tagPrefix;
             IsCore = isCore;
             LegacyFolders = legacyFolders ?? new string[0];
+            RequiredModules = requiredModules ?? new VivaRequirement[0];
         }
     }
 
@@ -51,13 +79,14 @@ namespace Viva.Core.Editor
     public static class VivaModuleCatalog
     {
         public const string CorePackageName = "com.vivagames.core";
+        public const string AnalyticsPackageName = "com.vivagames.analytics";
 
         public static readonly VivaModule[] Modules =
         {
             new VivaModule(CorePackageName, "Viva Core",
-                "Package installer and shared editor utilities. Required by every other module.",
+                "Package installer, shared editor utilities and the shared Firebase initialization. Required by every other module.",
                 tagPrefix: "core", isCore: true),
-            new VivaModule("com.vivagames.analytics", "Viva Analytics",
+            new VivaModule(AnalyticsPackageName, "Viva Analytics",
                 "Analytics event creation tool and Firebase Analytics integration.",
                 tagPrefix: "analytics",
                 legacyFolders: new[]
@@ -65,9 +94,22 @@ namespace Viva.Core.Editor
                     // Código de la herramienta en la versión .unitypackage (1.x). Events y Scripts se conservan.
                     "Assets/VivaAnalytics/Runtime",
                     "Assets/VivaAnalytics/Editor"
+                },
+                requiredModules: new[]
+                {
+                    // Desde 2.1.0 el tracker de Firebase espera a VivaFirebase, que llegó con core 2.1.0.
+                    new VivaRequirement(CorePackageName, "2.1.0")
+                }),
+            new VivaModule("com.vivagames.remoteconfig", "Viva Remote Config",
+                "Firebase Remote Config integration: declare the parameters in an editor window, read them through a generated typed class.",
+                tagPrefix: "remoteconfig",
+                requiredModules: new[]
+                {
+                    // Usa VivaFirebase (core 2.1) y, si hay analíticas, estas deben pasar también por él (analytics 2.1).
+                    new VivaRequirement(CorePackageName, "2.1.0"),
+                    new VivaRequirement(AnalyticsPackageName, "2.1.0")
                 }),
             // Próximos módulos, una línea por cada uno:
-            // new VivaModule("com.vivagames.remoteconfig", "Viva Remote Config", "Firebase Remote Config wrapper.", tagPrefix: "remoteconfig"),
             // new VivaModule("com.vivagames.ads", "Viva Ads", "AdsManager built on AppLovin MAX.", tagPrefix: "ads"),
         };
 
