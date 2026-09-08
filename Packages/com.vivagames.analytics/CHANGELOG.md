@@ -2,6 +2,20 @@
 
 Releases of this package are the git tags `analytics/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.3.0] - 2026-09-08
+
+### Added
+- Event targets: every event goes to Firebase, and the ones you tick in the Event Editor (**Send to**: Facebook, Singular) also go to those trackers. `AnalyticsTargets`, `IRoutedAnalyticsEvent` and `AAnalyticsTracker.Targets` (Firebase by default, `All` in the console tracker) do the routing in `AnalyticsService.TrackEvent`; events generated with only Firebase do not change at all. The Event Manager shows the extra targets of each event and the catalog accepts `"targets": ["facebook", "singular"]`. Unit tests included.
+- `FacebookAnalyticsTracker` (assembly `VivaGames.Analytics.Facebook`, compiled with `VIVA_FACEBOOK`, enabled by `FacebookSdkDetector` when `Facebook.Unity.dll` is found): Meta App Events with `FB.LogAppEvent`, SDK initialization if the project has not done it, `FB.ActivateApp` at start and on resume, tracking flags off until the consent allows them (`VivaConsent` published by Viva Ads, or `AnalyticsService.SetConsent` with the `AdStorage` signal), user id, queue until the SDK is ready (if `FB.Init` fails for a missing App ID the tracker logs it and the rest keep working). The Event Editor warns about the Facebook rules (names of 2 to 40 characters, 25 parameters, values of 100 characters); `FacebookEventConverter` applies them at runtime.
+- `SingularAnalyticsTracker` (assembly `VivaGames.Analytics.Singular`, compiled with `VIVA_SINGULAR`, enabled by `SingularSdkDetector` when the `SingularSDK` assembly is found): custom events with `SingularSDK.Event`, custom user id, user properties as global properties, queue until the `SingularSDK` component of the scene initializes the SDK (in the editor, where the SDK never initializes, the tracker counts as ready and only logs). With the Setup toggle **Attribute the ad revenue of Viva Ads in Singular** (on by default, stored in the new `AnalyticsSettings` asset under `Resources`) every impression published by Viva Ads 1.1.0 in `VivaAdRevenue` is attributed with `SingularSDK.AdRevenue`, no project code; `AttributeAdRevenue` takes that value. The Event Editor warns when a name is longer than 32 characters; `SingularEventConverter` truncates attributes to 500 characters.
+- `VivaUserId.GetOrCreate()`: a GUID created once and kept in PlayerPrefs; the generated `AnalyticsInit.cs` passes it to `SetUserId` so Firebase and Singular see the same player. `VivaUserId.Reset()` creates a new one.
+- `AnalyticsRuntime`: hidden MonoBehaviour for the trackers (application pause and resume, waits).
+- **Setup** shows the Facebook and Singular SDKs (not installed, detected, define enabled, App ID in `FacebookSettings.asset`, whether `AnalyticsInit.cs` creates the tracker) and the toggle that attributes the ad revenue of Viva Ads in Singular. **Run full setup** creates the settings asset.
+
+### Changed
+- The `AnalyticsInit.cs` template adds the Facebook and Singular trackers under their defines and sets the user id with `VivaUserId`. Existing projects keep their file: add the two `#if` blocks after `Initialize` (the README shows them; Setup says so when an SDK is found and the file does not create its tracker) or regenerate the file from Setup.
+- Requires Viva Core 2.3.0 or newer (`VivaAdRevenue`).
+
 ## [2.2.0] - 2026-09-08
 
 ### Added

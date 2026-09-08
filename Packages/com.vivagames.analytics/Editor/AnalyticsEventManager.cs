@@ -21,6 +21,7 @@ namespace Viva.Services.Analytics
             public string FilePath;
             public CatalogEvent CatalogEntry;
             public bool IsModified;
+            public AnalyticsTargets Targets = AnalyticsTargets.Firebase;
         }
 
         private readonly List<EventRow> _projectEvents = new List<EventRow>();
@@ -113,6 +114,8 @@ namespace Viva.Services.Analytics
 
                 string tag = row.CatalogEntry == null ? string.Empty : (row.IsModified ? "standard (modified)" : "standard");
                 GUILayout.Label(tag, EditorStyles.miniLabel, GUILayout.Width(120));
+                if (AnalyticsEventCodeGenerator.HasExtraTargets(row.Targets))
+                    GUILayout.Label("+ " + EventTargetsCodec.Describe(row.Targets & ~AnalyticsTargets.Firebase), EditorStyles.miniLabel, GUILayout.Width(130));
 
                 if (GUILayout.Button("Edit"))
                     EditEvent(row.SnakeName);
@@ -203,13 +206,18 @@ namespace Viva.Services.Analytics
                     var snakeName = StringUtils.ToSnakeCase(className);
                     var catalogEntry = AnalyticsEventCatalog.Find(snakeName);
 
+                    AnalyticsTargets targets = AnalyticsTargets.Firebase;
+                    try { targets = EventTargetsCodec.Parse(File.ReadAllText(file)); }
+                    catch (IOException) { /* fichero en uso: se muestra sin destinos extra */ }
+
                     _projectEvents.Add(new EventRow
                     {
                         SnakeName = snakeName,
                         ClassName = className,
                         FilePath = $"{folder}/{className}.cs",
                         CatalogEntry = catalogEntry,
-                        IsModified = catalogEntry != null && AnalyticsEventCatalog.IsModified(catalogEntry)
+                        IsModified = catalogEntry != null && AnalyticsEventCatalog.IsModified(catalogEntry),
+                        Targets = targets
                     });
                 }
             }

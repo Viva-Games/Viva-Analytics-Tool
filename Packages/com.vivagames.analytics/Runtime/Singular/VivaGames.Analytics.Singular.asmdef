@@ -1,0 +1,20 @@
+{
+    "name": "VivaGames.Analytics.Singular",
+    "rootNamespace": "Viva.Services.Analytics",
+    "references": [
+        "VivaGames.Analytics",
+        "VivaGames.Core",
+        "SingularSDK"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "VIVA_SINGULAR"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

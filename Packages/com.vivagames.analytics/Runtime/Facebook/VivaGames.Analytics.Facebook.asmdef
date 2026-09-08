@@ -1,0 +1,19 @@
+{
+    "name": "VivaGames.Analytics.Facebook",
+    "rootNamespace": "Viva.Services.Analytics",
+    "references": [
+        "VivaGames.Analytics",
+        "VivaGames.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "VIVA_FACEBOOK"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

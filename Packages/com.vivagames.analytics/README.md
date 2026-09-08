@@ -14,7 +14,7 @@ Coming from the `.unitypackage` version? See [Migration](#migration-from-the-uni
 
 ### Initialization
 
-Put the `AnalyticsInit` component in the first scene of your game. `AnalyticsInit.cs` belongs to your project and updates never overwrite it. It initializes the service with the Firebase tracker, and it is where you register common parameters and user properties and put the code that needs Firebase ready, in `OnFirebaseReady()`.
+Put the `AnalyticsInit` component in the first scene of your game. `AnalyticsInit.cs` belongs to your project and updates never overwrite it. It initializes the service with the Firebase tracker, adds the Facebook and Singular trackers when their SDKs are in the project, sets the user id, and it is where you register common parameters and user properties and put the code that needs Firebase ready, in `OnFirebaseReady()`.
 
 The Firebase dependency check is run once by Viva Core 2.1.0 or newer (`VivaFirebase`) and shared with every other Viva module that uses Firebase, such as Viva Remote Config. Each module keeps its own init component and the order in which they run does not matter: the first one starts the check and the rest wait for it. The console shows `[Viva] Checking Firebase dependencies (requested by Viva Analytics)...`, then `[Viva] Firebase ready to use.` and `[Analytics] Firebase ready: sending N queued event(s).` With an older core the tracker checks on its own, as in 2.0.0, and says so in the console.
 
@@ -45,7 +45,7 @@ The usual mistake is passing a changing value to `SetCommonParameter`: every eve
 
 ```csharp
 AnalyticsService.SetUserProperty("player_segment", "whale");
-AnalyticsService.SetUserId(SaveManager.Data.PlayerId);
+AnalyticsService.SetUserId(VivaUserId.GetOrCreate()); // or your own player id
 AnalyticsService.SetConsent(ConsentModeMapper.Map(tcf)); // Google Consent Mode, from the TCF state of your CMP
 ```
 
@@ -53,9 +53,47 @@ AnalyticsService.SetConsent(ConsentModeMapper.Map(tcf)); // Google Consent Mode,
 
 **With Viva Ads installed you do not call `SetConsent` at all.** Viva Ads publishes the result of the AppLovin MAX consent flow in `VivaConsent` (Viva Core 2.2.0) and `AnalyticsService` subscribes on its own, translates it with `ConsentModeMapper` and applies it. The console shows `[Viva] Consent resolved: ...` followed by `[Analytics] Consent Mode applied from AppLovin MAX.` A project with its own CMP can publish the same way, `VivaConsent.Set(new ConsentState { ... })`, or keep calling `SetConsent`; the last call wins.
 
+### Event targets: Firebase, Facebook and Singular
+
+Firebase receives every event. Facebook (Meta App Events) and Singular receive only the events you tick for them in the Event Editor, under **Send to**. The Event Manager shows the extra targets of each event (`+ Facebook`), and the studio catalog can mark an event with `"targets": ["facebook"]`.
+
+A ticked event declares its targets in the generated class (`public AnalyticsTargets Targets => AnalyticsTargets.Firebase | AnalyticsTargets.Facebook;`) and `AnalyticsService` hands it only to the trackers that serve one of them; the console tracker shows every event. Common parameters, user properties and the user id go to every tracker as before.
+
+The Event Editor warns when a name or the parameters break a platform rule. Facebook accepts names of 2 to 40 characters (letters, digits, `_`, `-` and spaces), up to 25 parameters and values of 100 characters. Singular accepts names of up to 32 ASCII characters. At runtime the Facebook tracker skips an event with an invalid name (one warning) and drops the parameters past the limit; the Singular tracker sends the event anyway and warns once.
+
+Projects that generated `AnalyticsInit.cs` with 2.2.0 or older keep their file: add the `#if` blocks shown below after `AnalyticsService.Initialize`. Setup says so when an SDK is found and the file does not create its tracker.
+
+### Facebook tracker
+
+Import the Facebook SDK for Unity and set the App ID in **Facebook > Edit Settings**. The tool finds `Facebook.Unity.dll`, enables `VIVA_FACEBOOK` and the generated `AnalyticsInit.cs` adds the tracker:
+
+```csharp
+#if VIVA_FACEBOOK
+AnalyticsService.AddTracker(new FacebookAnalyticsTracker());
+#endif
+```
+
+`FacebookAnalyticsTracker` initializes the SDK if the project has not (`FB.Init`), calls `FB.ActivateApp()` at start and every time the app resumes, sends the ticked events with `FB.LogAppEvent`, sets `FB.Mobile.UserID` with the user id and queues everything until the SDK is ready. The tracking flags (`SetAutoLogAppEventsEnabled`, `SetAdvertiserIDCollectionEnabled`, `SetAdvertiserTrackingEnabled`) start off and turn on when the consent allows it: outside GDPR, or with TCF purpose 1 granted. The consent arrives from `VivaConsent` (automatic with Viva Ads) or from `AnalyticsService.SetConsent` (the `AdStorage` signal). `LogToConsole` echoes each sent event. Without an App ID `FB.Init` fails: the tracker logs the error and keeps queueing, and the other trackers are not affected. In the editor the SDK only logs the events it would send.
+
+### Singular tracker
+
+Install the Singular Unity SDK (Package Manager with the git URL `https://github.com/singular-labs/Singular-Unity-SDK.git`, or its `.unitypackage`) and put its `SingularSDK` component, with the API key and secret, in the first scene: the SDK initializes itself from that component. The tool finds the `SingularSDK` assembly, enables `VIVA_SINGULAR` and the generated `AnalyticsInit.cs` adds the tracker:
+
+```csharp
+#if VIVA_SINGULAR
+AnalyticsService.AddTracker(new SingularAnalyticsTracker());
+#endif
+```
+
+`SingularAnalyticsTracker` waits for `SingularSDK.Initialized`, then sends the ticked events with `SingularSDK.Event`, the user id with `SetCustomUserId` and the user properties with `SetGlobalProperty`; everything received before is queued. With **Attribute the ad revenue of Viva Ads in Singular** ticked in **Viva > Analytics > Setup** (on by default) every impression that Viva Ads 1.1.0 publishes in `VivaAdRevenue` (Viva Core 2.3.0) is sent with `SingularSDK.AdRevenue`: platform, currency, revenue, ad type, ad unit, network, placement and precision. Untick it if the project attributes the revenue on its own. In the editor the Singular SDK never initializes and every call is a no-op, so the tracker counts as ready at once and, with `LogToConsole`, shows what it would send; the real check is a device build. The toggle is stored in `Assets/VivaAnalytics/Resources/VivaAnalyticsSettings.asset` (`AnalyticsSettings`, read at runtime); `SingularAnalyticsTracker.AttributeAdRevenue` takes that value and code can override it before adding the tracker. `LogToConsole` echoes each sent event and impression.
+
+### User id
+
+`VivaUserId.GetOrCreate()` returns a GUID created once and kept in PlayerPrefs, and the generated `AnalyticsInit.cs` passes it to `AnalyticsService.SetUserId`, so Firebase (user id) and Singular (custom user id) see the same player. `VivaUserId.Reset()` creates a new one, for example when the player deletes the account. If the game already has a player id, pass that one instead.
+
 ### Several trackers
 
-`AnalyticsService.Initialize` accepts any number of trackers and every event goes to all of them. Extend `AAnalyticsTracker` for a new SDK. `FirebaseAnalyticsTracker` queues events until Firebase is ready and raises `FirebaseReady`; `ConsoleAnalyticsTracker` only logs.
+`AnalyticsService.Initialize` accepts any number of trackers and `AddTracker` adds more later. Each tracker declares the targets it serves (`Targets`, Firebase by default) and receives the events that share one; extend `AAnalyticsTracker` for a new SDK. `FirebaseAnalyticsTracker` queues events until Firebase is ready and raises `FirebaseReady`; `ConsoleAnalyticsTracker` only logs.
 
 ### Migration from the .unitypackage version
 

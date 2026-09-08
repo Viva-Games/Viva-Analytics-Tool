@@ -25,7 +25,12 @@ namespace Viva.Services.Analytics
         public string description;
         public CatalogParameter[] parameters;
 
+        /// <summary>Destinos además de Firebase ("facebook", "singular"). Opcional.</summary>
+        public string[] targets;
+
         public string ClassName => StringUtils.ToUpperCamelCase(name);
+
+        public AnalyticsTargets ToTargets() => EventTargetsCodec.FromNames(targets);
 
         public string FilePath => $"{AnalyticsEditorSettings.EventsFolder}/{ClassName}.cs";
 
@@ -97,7 +102,7 @@ namespace Viva.Services.Analytics
 
         public static string GenerateSource(CatalogEvent catalogEvent)
         {
-            return AnalyticsEventCodeGenerator.Generate(catalogEvent.ClassName, catalogEvent.ToEventParameters());
+            return AnalyticsEventCodeGenerator.Generate(catalogEvent.ClassName, catalogEvent.ToEventParameters(), catalogEvent.ToTargets());
         }
 
         public static bool IsInProject(CatalogEvent catalogEvent)

@@ -29,6 +29,7 @@ namespace Viva.Services.Analytics
 
         private static readonly Color OkColor = new Color(0.55f, 0.9f, 0.55f);
         private static readonly Color WarningColor = new Color(1f, 0.72f, 0.4f);
+        private static readonly Color OffColor = new Color(0.65f, 0.65f, 0.65f);
 
         private string _eventsFolderDraft;
         private string _initPathDraft;
@@ -149,6 +150,8 @@ namespace Viva.Services.Analytics
             DrawRow(firebasePresent && defineEnabled, "Firebase Analytics SDK", firebaseDetail,
                 "Re-check", () => FirebaseSdkDetector.Refresh());
 
+            DrawTrackerRows();
+
             int total = AnalyticsEventCatalog.Events.Count;
             int missing = AnalyticsEventCatalog.Missing().Count;
             DrawRow(missing == 0, "Standard events", $"{total - missing}/{total} in project",
@@ -168,13 +171,124 @@ namespace Viva.Services.Analytics
             EditorGUILayout.Space();
         }
 
+        #region Optional trackers
+
+        private const string FACEBOOK_SETTINGS_PATH = "Assets/FacebookSDK/SDK/Resources/FacebookSettings.asset";
+        private static readonly Regex FacebookAppIdRegex = new Regex(@"appIds:\s*\r?\n\s*-\s*(\S+)");
+
+        /// <summary>
+        /// Trackers opcionales. Facebook y Singular se detectan solos (Facebook.Unity.dll y el assembly SingularSDK)
+        /// y activan su define; la fila avisa si falta la configuración del SDK o si AnalyticsInit.cs es de una
+        /// versión anterior y no crea el tracker.
+        /// </summary>
+        private static void DrawTrackerRows()
+        {
+            string initPath = AnalyticsEditorSettings.InitScriptPath;
+            string initSource = File.Exists(initPath) ? File.ReadAllText(initPath) : null;
+
+            bool facebookPresent = FacebookSdkDetector.IsSdkPresent();
+            bool facebookDefine = FacebookSdkDetector.IsDefineEnabled();
+            RowState facebookState;
+            string facebookDetail;
+            if (!facebookPresent)
+            {
+                facebookState = RowState.Off;
+                facebookDetail = "not installed (optional). Import the Facebook SDK for Unity to send the events marked \"Facebook\" in the Event Editor.";
+            }
+            else if (!facebookDefine)
+            {
+                facebookState = RowState.Warning;
+                facebookDetail = "detected, enabling " + FacebookSdkDetector.DEFINE + "...";
+            }
+            else
+            {
+                string appIdIssue = FacebookAppIdIssue();
+                string initIssue = InitIssue(initSource, "FacebookAnalyticsTracker");
+                facebookState = appIdIssue == null && initIssue == null ? RowState.Ok : RowState.Warning;
+                facebookDetail = "detected (" + FacebookSdkDetector.DEFINE + " enabled)." + (appIdIssue ?? string.Empty) + (initIssue ?? string.Empty);
+            }
+            DrawRow(facebookState, "Facebook SDK", facebookDetail, "Re-check", () => FacebookSdkDetector.Refresh());
+
+            bool singularPresent = SingularSdkDetector.IsSdkPresent();
+            bool singularDefine = SingularSdkDetector.IsDefineEnabled();
+            RowState singularState;
+            string singularDetail;
+            if (!singularPresent)
+            {
+                singularState = RowState.Off;
+                singularDetail = "not installed (optional). Install the Singular Unity SDK to send the events marked \"Singular\" and to attribute the ad revenue of Viva Ads.";
+            }
+            else if (!singularDefine)
+            {
+                singularState = RowState.Warning;
+                singularDetail = "detected, enabling " + SingularSdkDetector.DEFINE + "...";
+            }
+            else
+            {
+                string version = SingularSdkDetector.UpmPackageVersion();
+                string initIssue = InitIssue(initSource, "SingularAnalyticsTracker");
+                singularState = initIssue == null ? RowState.Ok : RowState.Warning;
+                singularDetail = "detected (" + (version != null ? "UPM " + version + ", " : string.Empty) + SingularSdkDetector.DEFINE + " enabled). " +
+                                 "The SingularSDK component of the first scene, with the API key and secret, initializes the SDK; the tracker waits for it." +
+                                 (initIssue ?? string.Empty);
+            }
+            DrawRow(singularState, "Singular SDK", singularDetail, "Re-check", () => SingularSdkDetector.Refresh());
+
+            DrawSingularAdRevenueToggle();
+        }
+
+        /// <summary>
+        /// Toggle "Attribute the ad revenue of Viva Ads in Singular". Se guarda en el asset VivaAnalyticsSettings
+        /// (Resources) y lo lee SingularAnalyticsTracker al crearse, así el proyecto no toca código para cambiarlo.
+        /// </summary>
+        private static void DrawSingularAdRevenueToggle()
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(28);
+            bool current = AnalyticsSettingsAsset.AttributeAdRevenueInSingular;
+            bool value = EditorGUILayout.ToggleLeft("Attribute the ad revenue of Viva Ads in Singular", current, GUILayout.Width(320));
+            if (value != current) AnalyticsSettingsAsset.SetAttributeAdRevenueInSingular(value);
+
+            var settings = AnalyticsSettingsAsset.Find();
+            string where = settings != null ? AnalyticsSettingsAsset.PathOf(settings) : "stored in " + AnalyticsSettingsAsset.DefaultPath + " when changed";
+            GUILayout.Label("needs Viva Ads and the Singular SDK; " + where, EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        /// <summary>null si FacebookSettings.asset tiene un App ID; si no, el aviso.</summary>
+        private static string FacebookAppIdIssue()
+        {
+            const string issue = " App ID not set: open Facebook > Edit Settings and fill in the App ID.";
+            if (!File.Exists(FACEBOOK_SETTINGS_PATH)) return issue;
+            var match = FacebookAppIdRegex.Match(File.ReadAllText(FACEBOOK_SETTINGS_PATH));
+            string appId = match.Success ? match.Groups[1].Value.Trim() : string.Empty;
+            return appId.Length > 0 && appId != "0" ? null : issue;
+        }
+
+        /// <summary>null si AnalyticsInit.cs crea el tracker; si no, el aviso (fichero generado por una versión anterior).</summary>
+        private static string InitIssue(string initSource, string trackerName)
+        {
+            if (initSource == null || initSource.Contains(trackerName)) return null;
+            return " AnalyticsInit.cs does not create " + trackerName + " (generated by an older version): add AnalyticsService.AddTracker(new " + trackerName + "()) after Initialize, see the README.";
+        }
+
+        #endregion
+
+        /// <summary>Estado de una fila: bien, aviso, o apagado (algo opcional que no está instalado).</summary>
+        private enum RowState { Ok, Warning, Off }
+
         private static void DrawRow(bool ok, string label, string detail, string buttonLabel, Action action)
+        {
+            DrawRow(ok ? RowState.Ok : RowState.Warning, label, detail, buttonLabel, action);
+        }
+
+        private static void DrawRow(RowState state, string label, string detail, string buttonLabel, Action action)
         {
             EditorGUILayout.BeginHorizontal();
 
             var previousColor = GUI.color;
-            GUI.color = ok ? OkColor : WarningColor;
-            GUILayout.Label(ok ? "OK" : "!", EditorStyles.boldLabel, GUILayout.Width(24));
+            GUI.color = state == RowState.Ok ? OkColor : state == RowState.Warning ? WarningColor : OffColor;
+            GUILayout.Label(state == RowState.Ok ? "OK" : state == RowState.Warning ? "!" : "–", EditorStyles.boldLabel, GUILayout.Width(24));
             GUI.color = previousColor;
 
             GUILayout.Label(label, EditorStyles.boldLabel, GUILayout.Width(160));
@@ -466,6 +580,7 @@ namespace Viva.Services.Analytics
         {
             EnsureFolder(AnalyticsEditorSettings.EventsFolder);
             int imported = AnalyticsEventCatalog.ImportMissing();
+            AnalyticsSettingsAsset.GetOrCreate();
 
             bool generated = false;
             var initPath = AnalyticsEditorSettings.InitScriptPath;
@@ -705,7 +820,8 @@ namespace Viva.Services.Analytics
                 "1. Add the AnalyticsInit component to a GameObject in the first scene of the game.\n" +
                 "2. Register your common parameters in AnalyticsInit.RegisterCommonParameters().\n" +
                 "3. Create or edit events in Viva > Analytics > Event Manager.\n" +
-                "4. Call {EventName}.Track(...) from your code.",
+                "4. Call {EventName}.Track(...) from your code.\n" +
+                "5. Send an event to Facebook or Singular too: tick it in the Event Editor (Send to). Firebase always receives every event.",
                 MessageType.None);
 
             if (GUILayout.Button("Open Event Manager"))

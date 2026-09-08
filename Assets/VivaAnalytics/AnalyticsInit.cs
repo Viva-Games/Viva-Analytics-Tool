@@ -28,10 +28,30 @@ namespace Viva.Services.Analytics
             AnalyticsService.Initialize(new ConsoleAnalyticsTracker());
 #endif
 
+#if VIVA_FACEBOOK
+            // Facebook (Meta App Events): receives only the events marked "Facebook" in the Event Editor.
+            // The tracker initializes the SDK if the project has not, calls ActivateApp on start and on resume,
+            // and raises the tracking flags when the consent allows it (Viva Ads consent or AnalyticsService.SetConsent).
+            AnalyticsService.AddTracker(new FacebookAnalyticsTracker());
+#endif
+
+#if VIVA_SINGULAR
+            // Singular: receives only the events marked "Singular" in the Event Editor. The SingularSDK component
+            // of the scene (with the API key and secret) initializes the SDK; the tracker waits for it.
+            // The ad revenue of Viva Ads is attributed in Singular when the toggle in Viva > Analytics > Setup is on;
+            // AttributeAdRevenue takes that value, set it here only to override it.
+            AnalyticsService.AddTracker(new SingularAnalyticsTracker());
+#endif
+
+            // Same player id everywhere: a GUID created once and kept in PlayerPrefs. Firebase gets it as user id,
+            // Singular as custom user id. Replace it with your own id if the game already has one.
+            AnalyticsService.SetUserId(VivaUserId.GetOrCreate());
+
             RegisterCommonParameters();
 
             // Consent (Google Consent Mode): when your CMP finishes, map its TCF state and hand it to every tracker.
-            // Trackers apply it as soon as their SDK is ready, before any queued event. EXAMPLE:
+            // Trackers apply it as soon as their SDK is ready, before any queued event. With Viva Ads installed this
+            // is automatic: its CMP publishes the consent through the core and every tracker receives it. EXAMPLE:
             // var tcf = new Consent.TcfConsent(isGdpr, purpose1, purpose3, purpose4, purpose7, googleVendor);
             // AnalyticsService.SetConsent(Consent.ConsentModeMapper.Map(tcf));
         }
@@ -53,9 +73,8 @@ namespace Viva.Services.Analytics
             // AnalyticsService.RegisterCommonParameter("hours_played", () => SaveManager.Data.HoursPlayed);
             // Fixed for the whole session: SetCommonParameter with the value, read once here.
             // AnalyticsService.SetCommonParameter("build_type", Debug.isDebugBuild ? "debug" : "release");
-            // User properties and user id, forwarded to every tracker.
+            // User properties, forwarded to every tracker (Singular keeps them as global properties).
             // AnalyticsService.SetUserProperty("player_segment", "whale");
-            // AnalyticsService.SetUserId(SaveManager.Data.PlayerId);
         }
 
 #if VIVA_FIREBASE_ANALYTICS

@@ -22,6 +22,7 @@ namespace Viva.Services.Analytics
         private string _eventName;
         private string _previousEventName;
         private readonly List<EventParameter> _eventParameters = new List<EventParameter>();
+        private AnalyticsTargets _targets = AnalyticsTargets.Firebase;
         private ReorderableList _reorderableList;
 
         private static string EventsFolder => AnalyticsEditorSettings.EventsFolder;
@@ -100,6 +101,8 @@ namespace Viva.Services.Analytics
             }
             EditorGUILayout.EndHorizontal();
 
+            DrawTargets();
+
             if (GUILayout.Button("Save"))
             {
                 SaveEvent();
@@ -107,14 +110,52 @@ namespace Viva.Services.Analytics
             }
         }
 
+        /// <summary>
+        /// Destinos del evento: Firebase siempre; Facebook y Singular solo si se marcan. Avisa de los límites
+        /// de cada plataforma (nombre de 32 caracteres en Singular; 40 y 25 parámetros en Facebook).
+        /// </summary>
+        private void DrawTargets()
+        {
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Send to", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ToggleLeft("Firebase", true, GUILayout.Width(90));
+            }
+            bool facebook = EditorGUILayout.ToggleLeft("Facebook", _targets.HasFlag(AnalyticsTargets.Facebook), GUILayout.Width(90));
+            bool singular = EditorGUILayout.ToggleLeft("Singular", _targets.HasFlag(AnalyticsTargets.Singular), GUILayout.Width(90));
+            EditorGUILayout.EndHorizontal();
+
+            _targets = AnalyticsTargets.Firebase
+                       | (facebook ? AnalyticsTargets.Facebook : AnalyticsTargets.None)
+                       | (singular ? AnalyticsTargets.Singular : AnalyticsTargets.None);
+
+            string eventKey = StringUtils.ToSnakeCase(_eventName ?? string.Empty);
+            if (facebook)
+            {
+                var names = new List<string>();
+                foreach (var parameter in _eventParameters) names.Add(StringUtils.ToSnakeCase(parameter.Name));
+                foreach (var issue in Facebook.FacebookEventConverter.Validate(eventKey, names))
+                    EditorGUILayout.HelpBox("Facebook: " + issue, MessageType.Warning);
+            }
+            if (singular)
+            {
+                string issue = Singular.SingularEventConverter.ValidateName(eventKey);
+                if (issue != null) EditorGUILayout.HelpBox("Singular: " + issue, MessageType.Warning);
+            }
+        }
+
         private void LoadParameters(string scriptName)
         {
             scriptName = StringUtils.ToUpperCamelCase(scriptName);
             var assetPath = $"{EventsFolder}/{scriptName}.cs";
+            _targets = AnalyticsTargets.Firebase;
             if (!File.Exists(assetPath)) return;
 
             _previousEventName = scriptName;
             var fileContent = File.ReadAllText(assetPath);
+            _targets = EventTargetsCodec.Parse(fileContent);
 
             // Los parámetros se leen de la lista eventParameters que lleva cada evento generado.
             var regex = new Regex(@"new EventParameter\(""(.+?)"", ""(.+?)""\)", RegexOptions.Singleline);
@@ -183,7 +224,7 @@ namespace Viva.Services.Analytics
 
         private string CreateScript(string scriptName)
         {
-            return AnalyticsEventCodeGenerator.Generate(scriptName, _eventParameters);
+            return AnalyticsEventCodeGenerator.Generate(scriptName, _eventParameters, _targets);
         }
 
         /// <summary>Normaliza a snake_case los nombres de la lista (se reflejan en la ventana) y la devuelve.</summary>
@@ -232,6 +273,7 @@ namespace Viva.Services.Analytics
             var window = GetWindow<AnalyticsEventEditor>("Analytics Event Editor");
             window._eventName = _eventName;
             window._previousEventName = _previousEventName;
+            window._targets = _targets;
             window._eventParameters.Clear();
             foreach (var param in _eventParameters)
                 window._eventParameters.Add(new EventParameter(param.Name, param.Type));

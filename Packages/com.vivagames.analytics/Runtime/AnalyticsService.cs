@@ -292,10 +292,14 @@ namespace Viva.Services.Analytics
                 ? eventToTrack
                 : new EnrichedAnalyticsEvent(eventToTrack, _commonParameters);
 
+            // Destinos del evento: solo Firebase si no declara ninguno. Cada tracker recibe los que le tocan.
+            AnalyticsTargets targets = eventToTrack.TargetsOf();
+
             for (int i = 0; i < _trackers.Count; i++)
             {
                 var tracker = _trackers[i];
                 if (!tracker.IsInitialized()) continue;
+                if (!tracker.Targets.Includes(targets)) continue;
 
                 try
                 {

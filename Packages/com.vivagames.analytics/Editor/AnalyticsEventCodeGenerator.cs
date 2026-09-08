@@ -20,9 +20,18 @@ namespace Viva.Services.Analytics
         /// </summary>
         public static string Generate(string scriptName, IReadOnlyList<EventParameter> parameters)
         {
+            return Generate(scriptName, parameters, AnalyticsTargets.Firebase);
+        }
+
+        /// <summary>
+        /// Genera la clase del evento con sus destinos. Con solo Firebase el fichero es el de siempre; con
+        /// Facebook o Singular la clase implementa IRoutedAnalyticsEvent y declara Targets.
+        /// </summary>
+        public static string Generate(string scriptName, IReadOnlyList<EventParameter> parameters, AnalyticsTargets targets)
+        {
             if (parameters == null || parameters.Count == 0)
             {
-                return GenerateWithoutParameters(scriptName);
+                return GenerateWithoutParameters(scriptName, targets);
             }
 
             var eventParameters = new List<EventParameter>(parameters.Count);
@@ -36,7 +45,7 @@ namespace Viva.Services.Analytics
             outfile.AppendLine("");
             outfile.AppendLine($"namespace {NAMESPACE}");
             outfile.AppendLine("{");
-            outfile.AppendLine($"\tpublic class {scriptName} : IAnalyticsEvent");
+            outfile.AppendLine($"\tpublic class {scriptName} : {InterfaceFor(targets)}");
             outfile.AppendLine("\t{");
 
             // Lista de parámetros que lee el editor de eventos (solo existe en el editor).
@@ -53,6 +62,7 @@ namespace Viva.Services.Analytics
             var eventKey = StringUtils.ToSnakeCase(scriptName);
             outfile.AppendLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
             outfile.AppendLine("");
+            AppendTargets(outfile, targets);
             outfile.AppendLine(TrackingFieldsToCode(eventParameters));
             outfile.AppendLine(TrackMethodToCode(scriptName, eventParameters));
             outfile.AppendLine("\t}");
@@ -66,23 +76,48 @@ namespace Viva.Services.Analytics
         /// </summary>
         public static string GenerateWithoutParameters(string scriptName)
         {
+            return GenerateWithoutParameters(scriptName, AnalyticsTargets.Firebase);
+        }
+
+        public static string GenerateWithoutParameters(string scriptName, AnalyticsTargets targets)
+        {
             var outfile = new StringBuilder();
             outfile.AppendLine("using System.Collections.Generic;");
             outfile.AppendLine("");
             outfile.AppendLine($"namespace {NAMESPACE}");
             outfile.AppendLine("{");
-            outfile.AppendLine($"\tpublic class {scriptName} : IAnalyticsEvent");
+            outfile.AppendLine($"\tpublic class {scriptName} : {InterfaceFor(targets)}");
             outfile.AppendLine("\t{");
 
             var eventKey = StringUtils.ToSnakeCase(scriptName);
             outfile.AppendLine($"\t\tpublic string GetEventKey() => \"{eventKey}\";");
             outfile.AppendLine("");
+            AppendTargets(outfile, targets);
             outfile.AppendLine("\t\tpublic Dictionary<string, object> GetTrackingFields() => new();");
             outfile.AppendLine("");
             outfile.AppendLine($"\t\tpublic static void Track() => AnalyticsService.TrackEvent(new {scriptName}());");
             outfile.AppendLine("\t}");
             outfile.AppendLine("}");
             return outfile.ToString();
+        }
+
+        /// <summary>true si el evento va a algún destino además de Firebase.</summary>
+        public static bool HasExtraTargets(AnalyticsTargets targets)
+        {
+            return (targets & ~AnalyticsTargets.Firebase) != 0;
+        }
+
+        private static string InterfaceFor(AnalyticsTargets targets)
+        {
+            return HasExtraTargets(targets) ? "IRoutedAnalyticsEvent" : "IAnalyticsEvent";
+        }
+
+        private static void AppendTargets(StringBuilder outfile, AnalyticsTargets targets)
+        {
+            if (!HasExtraTargets(targets)) return;
+            outfile.AppendLine("\t\t// Destinos del evento: Firebase siempre; el resto, los marcados en el Event Manager.");
+            outfile.AppendLine($"\t\tpublic AnalyticsTargets Targets => {EventTargetsCodec.ToCode(targets)};");
+            outfile.AppendLine("");
         }
 
         private static string EditorParametersToCode(List<EventParameter> eventParameters)

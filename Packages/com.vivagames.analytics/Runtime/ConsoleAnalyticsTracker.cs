@@ -19,6 +19,9 @@ namespace Viva.Services.Analytics
 
         protected internal override bool IsInitialized() => _isInitialized;
 
+        /// <summary>La consola enseña todos los eventos, vayan a donde vayan.</summary>
+        public override AnalyticsTargets Targets => AnalyticsTargets.All;
+
         public override void TrackEvent(IAnalyticsEvent eventToTrack)
         {
             Debug.Log(Format(eventToTrack));

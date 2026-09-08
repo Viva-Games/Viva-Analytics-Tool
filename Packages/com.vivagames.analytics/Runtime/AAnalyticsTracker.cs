@@ -20,6 +20,12 @@ namespace Viva.Services.Analytics
         protected internal abstract bool IsInitialized();
 
         /// <summary>
+        /// Qué eventos recibe este tracker: los que compartan algún destino con él. Firebase por defecto, para
+        /// que los trackers antiguos sigan igual; la consola declara All; Facebook y Singular, el suyo.
+        /// </summary>
+        public virtual AnalyticsTargets Targets => AnalyticsTargets.Firebase;
+
+        /// <summary>
         /// Tracks the given event.
         /// </summary>
         public abstract void TrackEvent(IAnalyticsEvent eventToTrack);
