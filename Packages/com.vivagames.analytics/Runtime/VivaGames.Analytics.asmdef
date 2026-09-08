@@ -1,7 +1,9 @@
 {
     "name": "VivaGames.Analytics",
     "rootNamespace": "Viva.Services.Analytics",
-    "references": [],
+    "references": [
+        "VivaGames.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

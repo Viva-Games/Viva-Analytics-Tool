@@ -2,6 +2,11 @@
 
 Releases of this package are the git tags `analytics/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.2.0] - 2026-09-08
+
+### Added
+- Consent arrives on its own: `AnalyticsService` subscribes to `VivaConsent` (Viva Core 2.2.0) and applies every published state through `ConsentModeMapper` and `SetConsent`. With Viva Ads installed, the result of the AppLovin MAX consent flow reaches Firebase (Google Consent Mode) without any project code; a project with its own CMP can publish it with `VivaConsent.Set` or keep calling `AnalyticsService.SetConsent`. Requires Viva Core 2.2.0 or newer.
+
 ## [2.1.0] - 2026-09-08
 
 ### Changed

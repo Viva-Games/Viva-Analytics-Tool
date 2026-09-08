@@ -51,6 +51,8 @@ AnalyticsService.SetConsent(ConsentModeMapper.Map(tcf)); // Google Consent Mode,
 
 `Viva.Services.Analytics.Consent` has `TcfConsent` (the TCF purposes read from your CMP, for example AppLovin MAX), `ConsentModeMapper` (TCF to the four Consent Mode signals, following Google's rules) and unit tests. Every tracker receives user data and consent; the Firebase tracker applies them as soon as Firebase is ready, before any queued event.
 
+**With Viva Ads installed you do not call `SetConsent` at all.** Viva Ads publishes the result of the AppLovin MAX consent flow in `VivaConsent` (Viva Core 2.2.0) and `AnalyticsService` subscribes on its own, translates it with `ConsentModeMapper` and applies it. The console shows `[Viva] Consent resolved: ...` followed by `[Analytics] Consent Mode applied from AppLovin MAX.` A project with its own CMP can publish the same way, `VivaConsent.Set(new ConsentState { ... })`, or keep calling `SetConsent`; the last call wins.
+
 ### Several trackers
 
 `AnalyticsService.Initialize` accepts any number of trackers and every event goes to all of them. Extend `AAnalyticsTracker` for a new SDK. `FirebaseAnalyticsTracker` queues events until Firebase is ready and raises `FirebaseReady`; `ConsoleAnalyticsTracker` only logs.

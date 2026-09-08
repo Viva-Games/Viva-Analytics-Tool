@@ -3,6 +3,7 @@
     "rootNamespace": "Viva.Services.Analytics.Tests",
     "references": [
         "VivaGames.Analytics",
+        "VivaGames.Core",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

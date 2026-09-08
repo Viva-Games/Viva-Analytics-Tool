@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Viva.Core;
 using Viva.Services.Analytics.Consent;
 
 namespace Viva.Services.Analytics
@@ -111,6 +112,10 @@ namespace Viva.Services.Analytics
 
             if (_trackers.Contains(tracker)) return;
 
+            // Antes de añadirlo: si el consentimiento compartido ya está resuelto, la suscripción lo aplica a los
+            // trackers existentes y el nuevo lo recibe justo después como "tracker que llega tarde".
+            EnsureSharedConsentSubscription();
+
             _trackers.Add(tracker);
             if (!tracker.IsInitialized())
             {
@@ -150,6 +155,24 @@ namespace Viva.Services.Analytics
         /// termina. Se envían a todos los trackers, también a los que se añadan más tarde; cada uno las aplica en cuanto
         /// su SDK está listo.
         /// </summary>
+        /// <summary>
+        /// Consentimiento compartido por el core (VivaConsent): lo publica el módulo que tiene el CMP (Viva Ads
+        /// tras el flujo de AppLovin MAX) y aquí se traduce a Google Consent Mode sin código del proyecto.
+        /// Un proyecto con su propio CMP puede seguir llamando a SetConsent: gana la última llamada.
+        /// Subscribe deduplica por callback, así que llamarlo en cada AddTracker no suscribe dos veces.
+        /// </summary>
+        private static void EnsureSharedConsentSubscription()
+        {
+            VivaConsent.Subscribe(OnSharedConsent);
+        }
+
+        private static void OnSharedConsent(ConsentState state)
+        {
+            var tcf = new TcfConsent(state.IsGdpr, state.Purpose1, state.Purpose3, state.Purpose4, state.Purpose7, state.GoogleVendor);
+            SetConsent(ConsentModeMapper.Map(tcf));
+            Debug.Log($"[Analytics] Consent Mode applied from {state.Source ?? "VivaConsent"}.");
+        }
+
         public static void SetConsent(IReadOnlyDictionary<ConsentSignal, bool> signals)
         {
             if (signals == null)
