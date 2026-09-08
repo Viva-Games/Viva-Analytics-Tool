@@ -647,10 +647,13 @@ Pendiente:
   en esa ejecución:
   `Unity.exe -batchmode -nographics -projectPath <proyecto> -runTests -testPlatform PlayMode -testResults r.xml -logFile l.txt`
   (con el editor cerrado) o la pestaña PlayMode del Test Runner.
-- Prueba en Arrows: instalar core 2.1 + analytics 2.1 + remoteconfig 1.0 desde
-  la rama, Import from code (esperados 10 claves, 4 sin default literal),
-  completar defaults, Save, Migrate, compilar, y en dispositivo comprobar en el
-  log `[Viva] Checking Firebase dependencies (requested by Viva Analytics)...`
-  una sola vez, `[RemoteConfig] Values available from Cache|Defaults` y
-  `[RemoteConfig] Ready. Values from Remote`, con red y sin red.
-- Releases (tags) cuando Jesús lo pida.
+- Prueba en Arrows: descartada por Jesús el 2026-09-08. La herramienta es
+  para proyectos nuevos; los fallos se verán al implementarla en el primero.
+  Si algún día se hace, la receta: instalar core 2.1 + analytics 2.1 +
+  remoteconfig 1.0, Import from code (esperados 10 claves, 4 sin default
+  literal), completar defaults, Save, Migrate, compilar, y en dispositivo
+  comprobar en el log `[Viva] Checking Firebase dependencies (requested by
+  Viva Analytics)...` una sola vez, `[RemoteConfig] Values available from
+  Cache|Defaults` y `[RemoteConfig] Ready. Values from Remote`, con red y sin red.
+- Commiteado el 2026-09-08 en `develop` y `main` (fast-forward). Push y tags
+  `core/v2.1.0`, `analytics/v2.1.0` y `remoteconfig/v1.0.0` cuando Jesús lo pida.
