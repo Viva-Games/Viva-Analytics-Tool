@@ -2,6 +2,12 @@
 
 Releases of this package are the git tags `analytics/vX.Y.Z`. Each Viva module has its own version and changelog.
 
+## [2.1.0] - 2026-09-08
+
+### Changed
+- With Viva Core 2.1.0 or newer, `FirebaseAnalyticsTracker` no longer calls `FirebaseApp.CheckAndFixDependenciesAsync` itself: it goes through `VivaFirebase`, which runs the check once for every Viva module, so other modules such as Viva Remote Config can initialize on their own without a second, concurrent check. Queueing, `IsFirebaseReady` and the `FirebaseReady` event behave as before; the console now shows `[Viva] Checking Firebase dependencies (requested by Viva Analytics)...` and `[Analytics] Firebase ready: sending N queued event(s).`
+- With an older core (or until its detector defines `VIVA_FIREBASE`) the tracker keeps checking on its own, as in 2.0.0, so the project compiles in every combination. To use it together with other Viva modules that use Firebase, update Viva Core to 2.1.0 first; the installer asks for it.
+
 ## [2.0.0] - 2026-09-07
 
 ### Changed

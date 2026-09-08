@@ -2,7 +2,9 @@
     "name": "VivaGames.Analytics.Firebase",
     "rootNamespace": "Viva.Services.Analytics",
     "references": [
-        "VivaGames.Analytics"
+        "VivaGames.Analytics",
+        "VivaGames.Core",
+        "VivaGames.Core.Firebase"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

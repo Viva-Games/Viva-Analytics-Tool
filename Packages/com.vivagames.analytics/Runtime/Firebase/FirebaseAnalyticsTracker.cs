@@ -1,18 +1,23 @@
 using System;
 using System.Collections.Generic;
-using Firebase;
 using Firebase.Analytics;
-using Firebase.Extensions;
 using UnityEngine;
 using Viva.Services.Analytics.Consent;
+#if VIVA_FIREBASE
+using Viva.Core;
+#else
+using Firebase.Extensions;
+#endif
 
 namespace Viva.Services.Analytics
 {
     /// <summary>
     /// Tracker de Firebase Analytics. No hace falta editarlo: los parámetros comunes se registran
     /// con <see cref="AnalyticsService.RegisterCommonParameter"/> desde el AnalyticsInit del proyecto.
-    /// Comprueba las dependencias de Firebase al inicializarse y guarda en cola los eventos que
-    /// lleguen antes de que Firebase esté listo.
+    /// Espera a que VivaFirebase (Viva Core 2.1) resuelva las dependencias de Firebase, una sola vez
+    /// para todos los módulos Viva, y guarda en cola los eventos que lleguen antes de que Firebase esté listo.
+    /// Sin VIVA_FIREBASE (core anterior a 2.1, o antes de que su detector defina el símbolo) comprueba
+    /// las dependencias por su cuenta, como en la 2.0.0, para que el proyecto compile en cualquier combinación.
     /// </summary>
     public class FirebaseAnalyticsTracker : AAnalyticsTracker
     {
@@ -48,33 +53,57 @@ namespace Viva.Services.Analytics
             if (_isInitialized) return;
             _isInitialized = true;
 
-            // Comprueba las dependencias de Google Play Services y deja Firebase listo.
-            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
+#if VIVA_FIREBASE
+            // La comprobación de dependencias de Firebase (Google Play Services) la hace VivaFirebase una sola
+            // vez para todos los módulos Viva: el primero que la pide la arranca y el resto espera. El SDK no
+            // admite dos comprobaciones a la vez, así que ningún módulo llama a CheckAndFixDependenciesAsync.
+            VivaFirebase.EnsureInitialized("Viva Analytics");
+            VivaFirebase.WhenReady(OnFirebaseAvailable, OnFirebaseUnavailable);
+#else
+            CheckDependenciesOnOurOwn();
+#endif
+        }
+
+#if !VIVA_FIREBASE
+        /// <summary>
+        /// Comprobación propia, como en la 2.0.0. Solo se compila sin Viva Core 2.1: con otros módulos Viva
+        /// que usen Firebase hace falta el core 2.1, para que la comprobación sea una sola.
+        /// </summary>
+        private void CheckDependenciesOnOurOwn()
+        {
+            Debug.Log("[Analytics] Checking Firebase dependencies (Viva Core 2.1 not detected, checking on our own)...");
+            global::Firebase.FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
             {
                 if (task.IsFaulted || task.IsCanceled)
                 {
-                    _firebaseFailed = true;
-                    _pending.Clear();
-                    Debug.LogError("[Analytics] Firebase dependency check failed: " + task.Exception);
+                    OnFirebaseUnavailable("Firebase dependency check failed: " + task.Exception);
                     return;
                 }
 
-                DependencyStatus status = task.Result;
-                if (status == DependencyStatus.Available)
-                {
-                    _firebaseReady = true;
-                    Debug.Log("[Analytics] Firebase ready to use.");
-                    FlushPendingUserData();
-                    FlushPending();
-                    RaiseFirebaseReady();
-                }
+                var status = task.Result;
+                if (status == global::Firebase.DependencyStatus.Available)
+                    OnFirebaseAvailable();
                 else
-                {
-                    _firebaseFailed = true;
-                    _pending.Clear();
-                    Debug.LogError($"[Analytics] Could not resolve all Firebase dependencies: {status}. Events will not be sent.");
-                }
+                    OnFirebaseUnavailable($"Could not resolve all Firebase dependencies: {status}.");
             });
+        }
+#endif
+
+        // Hilo principal, una sola vez, cuando Firebase ha resuelto sus dependencias.
+        private void OnFirebaseAvailable()
+        {
+            _firebaseReady = true;
+            Debug.Log($"[Analytics] Firebase ready: sending {_pending.Count} queued event(s).");
+            FlushPendingUserData();
+            FlushPending();
+            RaiseFirebaseReady();
+        }
+
+        private void OnFirebaseUnavailable(string reason)
+        {
+            _firebaseFailed = true;
+            _pending.Clear();
+            Debug.LogError("[Analytics] Firebase is not available, events will not be sent. " + reason);
         }
 
         protected override bool IsInitialized() => _isInitialized;

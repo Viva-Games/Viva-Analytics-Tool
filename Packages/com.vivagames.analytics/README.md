@@ -16,6 +16,8 @@ Coming from the `.unitypackage` version? See [Migration](#migration-from-the-uni
 
 Put the `AnalyticsInit` component in the first scene of your game. `AnalyticsInit.cs` belongs to your project and updates never overwrite it. It initializes the service with the Firebase tracker, and it is where you register common parameters and user properties and put the code that needs Firebase ready, in `OnFirebaseReady()`.
 
+The Firebase dependency check is run once by Viva Core 2.1.0 or newer (`VivaFirebase`) and shared with every other Viva module that uses Firebase, such as Viva Remote Config. Each module keeps its own init component and the order in which they run does not matter: the first one starts the check and the rest wait for it. The console shows `[Viva] Checking Firebase dependencies (requested by Viva Analytics)...`, then `[Viva] Firebase ready to use.` and `[Analytics] Firebase ready: sending N queued event(s).` With an older core the tracker checks on its own, as in 2.0.0, and says so in the console.
+
 ### Event creation and modification
 
 - To display the tool, go to **Viva > Analytics > Event Manager**.

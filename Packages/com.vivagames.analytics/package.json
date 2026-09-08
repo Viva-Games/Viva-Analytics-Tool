@@ -1,8 +1,8 @@
 {
   "name": "com.vivagames.analytics",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "displayName": "Viva Analytics",
-  "description": "Analytics event creation tool and Firebase Analytics integration for Viva Games projects. Requires com.vivagames.core: install both through Viva > Package Installer.",
+  "description": "Analytics event creation tool and Firebase Analytics integration for Viva Games projects. Requires com.vivagames.core 2.1.0 or newer: install both through Viva > Package Installer.",
   "unity": "2021.3",
   "author": {
     "name": "Viva Games",
